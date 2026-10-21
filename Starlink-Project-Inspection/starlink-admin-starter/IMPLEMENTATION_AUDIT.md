@@ -24,9 +24,10 @@ Audit scope: source inspection of the extracted archive at `Starlink-Project-Ins
 - Customer notification settings cap link permissions. Phone and amount fields are configurable; phone sharing defaults off for existing preferences after migration 002. Customer-level notification disablement prevents new order notifications.
 - Migration 002 adds attempt history, processing timestamps, stale-claim recovery, and guarded atomic completion. Manual retries are restricted to failed notifications, whose history is displayed in the Admin UI.
 - Migration 003 adds a service-role-only schema readiness RPC and requests a PostgREST cache reload. `/health` now checks the required tables/RPCs and returns 503 when unavailable instead of treating configured credentials as database readiness.
+- Migration 004 extends readiness to expected columns, foreign keys, indexes, RLS, service-role table/RPC grants, and applies additive/rerunnable permission/index/FK/search-path repairs without row updates. Queue processing checks readiness before claiming and backs off exponentially on schema/RPC failures. Production Vercel origin is explicitly allowlisted; configured origins must be exact HTTP(S) origins.
 - Unchanged visitor submissions reuse one idempotency key while the page remains mounted; duplicate responses are only returned for a matching link, bundle, and phone. Order references now contain 64 random bits.
 - The Admin has a saved-configuration preview and filters the latest 200 orders by customer, link, reference, bundle, payment/notification status, and date.
-- Queue claim/completion errors are throttled to one log per minute and redact common token/bearer/PIN-like patterns; notification text is built from an explicit allowlist.
+- Queue claim/completion errors are throttled to one log per minute and redact common token/bearer/PIN-like patterns; notification text is built from an explicit allowlist. API errors log sanitized details and return generic status-specific messages.
 
 ## Partial, missing, or broken behavior
 
@@ -44,7 +45,7 @@ Audit scope: source inspection of the extracted archive at `Starlink-Project-Ins
 1. **High: production application is not present.** This is a recovered starter, not a verified production website or payment system. Back up and reconcile it with the real repository before deployment.
 2. **High: notification delivery is at-least-once.** A crash between Telegram send and database completion can duplicate a message.
 3. **Medium: Admin JWT is stored in `localStorage`**, increasing the impact of frontend XSS; no refresh/revocation mechanism exists.
-4. **Operational:** health reports environment configuration, not database connectivity. Verify Render proxy topology against the hardcoded `trust proxy` setting.
+4. **Operational:** live Render health/CORS requests timed out during this run, so deployment state remains unverified. Verify Render proxy topology against the hardcoded `trust proxy` setting.
 5. **Operational:** dependency lockfiles were absent from the archive; `npm install` generated lockfiles in this extracted copy. Review and keep them under version control.
 
 ## Database and configuration required
@@ -52,13 +53,14 @@ Audit scope: source inspection of the extracted archive at `Starlink-Project-Ins
 - Existing baseline migration: `backend/supabase/migrations/001_initial.sql` creates customers, links, orders, notifications, bundle catalog, RLS, and core RPCs.
 - Added forward-only migration: `backend/supabase/migrations/002_notification_attempt_history.sql` adds attempt records, processing timestamps/recovery, a completion RPC, and opts phone sharing out for existing preference rows. Apply it after 001 and review the preference update before production.
 - Added forward-only migration: `backend/supabase/migrations/003_schema_contract.sql` adds a read-only required-object status RPC and asks PostgREST to reload its schema cache. Apply it after 002.
+- Added forward-only migration: `backend/supabase/migrations/004_schema_readiness_and_api_grants.sql` verifies columns/FKs/indexes/RLS/grants and repairs missing grants, RLS flags, indexes, and foreign keys without altering rows. Apply it after 003. Migration 002 updates existing phone-notification preferences; do not rerun it if already applied or after settings have been changed.
 - Required backend settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, `FRONTEND_URL`, and verified `PUBLIC_APP_URL`; `TELEGRAM_BOT_TOKEN` is needed for Telegram. Values are only examples in `.env.example`.
 - No EcoCash provider credentials, merchant API contract, signature scheme, or callback URL is included. A safe pending-order workflow is the only supportable payment behavior.
 
 ## Prioritized implementation plan
 
 1. Obtain the actual production repository and reconcile its visitor/payment components before integrating this recovered starter.
-2. Back up Supabase, inspect migration history, apply only missing migrations in order (001, 002, 003), then verify `/health` is 200 and test claims/retries with concurrent workers and simulated crashes.
+2. Back up Supabase, inspect catalog objects and migration history, apply only missing migrations in order (001, 002, 003, 004), then verify `/health` is 200 and test claims/retries with concurrent workers and simulated crashes.
 3. Add API integration tests for authentication, cross-customer access, link publication, price tampering, idempotency, and database failures.
 4. Obtain official EcoCash merchant documentation and credentials before implementing payment initiation and authenticated callback verification.
 5. Configure Telegram credentials and real destinations; run `getMe` and destination `sendMessage` tests before deployment.

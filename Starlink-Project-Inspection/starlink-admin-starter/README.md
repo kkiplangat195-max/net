@@ -32,11 +32,30 @@ frontend/
 ## 1. Create Supabase database
 
 1. Create a Supabase project.
-2. For a new database, run `001_initial.sql`, then `002_notification_attempt_history.sql`, then `003_schema_contract.sql` from `backend/supabase/migrations/` in the Supabase SQL Editor. For an existing project, inspect its objects and migration history first and run only missing migrations; take a backup before applying SQL.
+2. There is no migration runner in this repository or Render Blueprint. In Supabase SQL Editor, first inspect the current schema and migration history, back up the database, and apply only missing migrations in this order: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`, `004_schema_readiness_and_api_grants.sql`.
 3. In Project Settings → API, copy the project URL and the **service-role key**. The service-role key is server-only and must never be added to Vercel or any `VITE_` variable.
-4. The migrations create customers, visitor links, orders, notifications, a bundle catalog, notification attempt history, RLS, and RPC functions for idempotent order creation, notification claiming, guarded attempt completion, and schema readiness. Migration 003 notifies PostgREST to reload its schema cache. Migration 002 opts phone-number sharing out for existing notification preferences; review that privacy change before production.
+4. The migrations create customers, visitor links, orders, notifications, a bundle catalog, notification attempt history, RLS, and RPC functions for idempotent order creation, notification claiming, guarded attempt completion, and schema readiness. Migration 003 and 004 request a PostgREST schema reload. Migration 002 sets existing customer/link `phone` notification preferences to false; it is not safe to rerun after customers have changed those preferences. Inspect migration state and preference data first; do not rerun an applied 002.
 
-The backend uses the service role and enforces admin authentication at the API layer. Do not add a permissive RLS policy for anonymous access. `/health` now returns HTTP 503 until all expected tables/functions are visible via the schema-status RPC; after SQL Editor execution, wait briefly for PostgREST's reload and verify the response is HTTP 200 with `databaseReady: true`.
+The backend uses the service role and enforces admin authentication at the API layer. Do not add a permissive RLS policy for anonymous access. `/health` returns HTTP 503 until expected tables, columns, foreign keys, indexes, RLS flags, service-role grants, and RPCs are visible. After applying SQL, wait briefly for PostgREST's reload and verify HTTP 200 with `databaseReady: true`.
+
+Read-only preflight (run before applying migrations):
+
+```sql
+select current_database(), current_schema();
+select to_regclass('public.customers') as customers,
+       to_regclass('public.visitor_links') as visitor_links,
+       to_regclass('public.orders') as orders,
+       to_regclass('public.notifications') as notifications,
+       to_regclass('public.notification_attempts') as notification_attempts,
+       to_regclass('public.bundle_catalog') as bundle_catalog,
+       to_regprocedure('public.claim_notifications(integer)') as claim_notifications,
+       to_regprocedure('public.complete_notification_attempt(uuid,integer,boolean,text,timestamptz)') as complete_notification_attempt,
+      to_regprocedure('public.notification_schema_status()') as notification_schema_status;
+select schemaname, tablename from pg_catalog.pg_tables
+where schemaname = 'public' order by tablename;
+```
+
+    No migration-history row alone proves whether an older migration ran. Compare catalog objects and definitions before deciding which files are missing. If `notification_schema_status()` is not yet installed, the `to_regprocedure` result will be `NULL`; do not run it in the preflight query. After applying migration 003 or 004, run `select public.notification_schema_status();` and verify `https://net-a5jw.onrender.com/health` returns `databaseReady: true`.
 
 ## 2. Configure and run the backend locally
 

@@ -8,9 +8,11 @@ import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { apiFailureStatus } from './api-errors.js';
 import { assertPublishableLink, formatOrderNotification, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from './domain.js';
 import { inspectDatabaseSchema } from './database-health.js';
-import { queueErrorLogDue, safeQueueErrorDetails } from './queue-diagnostics.js';
+import { getAllowedOrigins } from './cors-origins.js';
+import { createQueueBackoff, queueErrorLogDue, runQueueWhenReady, safeQueueErrorDetails } from './queue-diagnostics.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'ADMIN_EMAIL', 'ADMIN_PASSWORD_HASH', 'JWT_SECRET'];
 const missing = required.filter((k) => !process.env[k]);
@@ -20,8 +22,8 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map((s) => s.trim());
-app.use(cors({ origin(origin, cb) { if (!origin || allowedOrigins.includes(origin)) return cb(null, true); return cb(new Error('Origin not allowed by CORS')); }, credentials: false }));
+const allowedOrigins = getAllowedOrigins(process.env.FRONTEND_URL || '');
+app.use(cors({ origin(origin, cb) { if (!origin || allowedOrigins.has(origin)) return cb(null, true); const error = new Error('Origin not allowed by CORS'); error.status = 403; return cb(error); }, credentials: false }));
 app.use(express.json({ limit: '32kb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/public', rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
@@ -33,7 +35,6 @@ const USD_BUNDLES = [
   { id: '50gb-21d', name: '50GB Data', validity: '21-Day Plan', price: 2.99, currency: 'USD', description: '50GB for 21 days' },
   { id: 'unlimited-30d', name: 'Unlimited', validity: '30-Day Plan', price: 3.99, currency: 'USD', description: 'Unlimited data for 30 days' }
 ];
-const safeError = (err) => ({ error: err?.message || 'Unexpected error' });
 const dbReady = (req, res, next) => { if (!supabase) return res.status(503).json({ error: 'Database is not configured. Set Supabase environment variables.' }); next(); };
 const admin = (req, res, next) => {
   const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
@@ -264,23 +265,44 @@ app.post('/api/admin/customers/:id/telegram-test', ...adminRoute, asyncRoute(asy
   if (!response.ok || !result.ok) return res.status(502).json({ connected: false, error: result.description || 'Telegram delivery failed.' });
   res.json({ connected: true, message: 'Telegram test message sent successfully.' });
 }));
-app.use((err, _req, res, _next) => { console.error('API error:', err?.message || 'unknown error'); res.status(500).json({ error: 'The request could not be completed.' }); });
+app.use((err, _req, res, _next) => {
+  console.error('API request failed:', safeQueueErrorDetails(err));
+  const status = apiFailureStatus(err);
+  res.status(status).json({ error: status === 403 ? 'Origin not allowed by CORS.' : 'The request could not be completed.' });
+});
 
 // DB-backed queue worker. Run one Render worker instance for simple deployments.
 let workerBusy = false;
 let lastQueueErrorLogAt = null;
+const queueBackoff = createQueueBackoff();
 function logQueueError(label, error) {
   const now = Date.now();
   if (!queueErrorLogDue(lastQueueErrorLogAt, now)) return;
   lastQueueErrorLogAt = now;
   console.error(label, safeQueueErrorDetails(error));
 }
+function pauseQueue(label, error) {
+  queueBackoff.failed();
+  logQueueError(label, error);
+}
 async function processNotifications() {
-  if (!supabase || !process.env.TELEGRAM_BOT_TOKEN || workerBusy) return;
+  if (!supabase || !process.env.TELEGRAM_BOT_TOKEN || workerBusy || !queueBackoff.canRun()) return;
   workerBusy = true;
   try {
-    const { data: jobs, error } = await supabase.rpc('claim_notifications', { p_limit: 10 });
-    if (error) { logQueueError('Notification queue claim failed:', error); return; }
+    const queue = await runQueueWhenReady(
+      () => inspectDatabaseSchema(supabase),
+      () => supabase.rpc('claim_notifications', { p_limit: 10 })
+    );
+    if (!queue.claimed) {
+      const message = queue.readiness.missingObjects?.length
+        ? `Schema not ready; missing: ${queue.readiness.missingObjects.join(', ')}`
+        : 'Schema readiness check is unavailable.';
+      pauseQueue('Notification queue paused:', { code: queue.readiness.schemaCheckError || 'schema_not_ready', message });
+      return;
+    }
+    const { data: jobs, error } = queue.result;
+    if (error) { pauseQueue('Notification queue claim failed:', error); return; }
+    queueBackoff.succeeded();
     for (const job of jobs || []) {
       let status = 'failed'; let errorText = null;
       try {
@@ -299,7 +321,10 @@ async function processNotifications() {
         p_error: errorText,
         p_next_attempt_at: outcome.nextAttemptAt
       });
-      if (completionError) logQueueError('Notification result could not be persisted:', completionError);
+      if (completionError) {
+        pauseQueue('Notification result could not be persisted:', completionError);
+        return;
+      }
     }
   } catch (err) { logQueueError('Notification worker error:', err); }
   finally { workerBusy = false; }
