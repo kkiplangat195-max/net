@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import "./style.css";
 import "./order-confirmation.css";
+import { loadVisitorLink } from "./visitor-link-loader.js";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const API = (configuredApiUrl || (import.meta.env.DEV ? "http://localhost:8080" : "")).replace(/\/$/, "");
@@ -1684,18 +1685,37 @@ function VisitorPage() {
   const [link, setLink] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [bundleId, setBundleId] = useState("");
   const [phone, setPhone] = useState("");
-  const [paymentError, setPaymentError] = useState("");
-  const [telegramNotifications, setTelegramNotifications] =useState(true);
-  const [includePhone, setIncludePhone] = useState(true);
-  const [includeReference, setIncludeReference] = useState(false);
-  const [paymentReference, setPaymentReference] = useState("");
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const submissionKey = useRef(null);
   const bundle = link?.bundles.find((b) => b.id === bundleId);
-  async function submit(e) {
-    e.preventDefault();
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLink(null);
+    setError("");
+    loadVisitorLink(API, linkToken)
+      .then((loadedLink) => {
+        if (!active) return;
+        setLink(loadedLink);
+        setBundleId(loadedLink.bundles[0]?.id || "");
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [linkToken, loadAttempt]);
+
+  async function submit() {
+    if (!bundle || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -1718,39 +1738,16 @@ function VisitorPage() {
       setBusy(false);
     }
   }
-   function submitPayment(event) {
-  event.preventDefault();
-  setPaymentError("Payment verification is not connected yet. No payment has been made.");
-}
-  if (loading)
-    return <div className="visitor-loading">Loading bundle options…</div>;
-   {
-  event.preventDefault();
-  setPaymentError("");
 
-  const digits = phone.replace(/\D/g, "");
-  const normalizedPhone = digits.startsWith("263")
-    ? digits
-    : digits.startsWith("0")
-      ? "263" + digits.slice(1)
-      : "263" + digits;
-
-  if (!/^2637\d{8}$/.test(normalizedPhone)) {
-    setPaymentError("Enter a valid Zimbabwe mobile number.");
-    return;
-  }
-
-  setPaymentError(
-    "Checkout received."
-  );
-}
-  if (loading)
-    return <div className="visitor-loading">Loading bundle options…</div>;
+  if (loading) return <div className="visitor-loading" role="status"><LoaderCircle className="spin" size={20} /> Loading bundle options…</div>;
   if (!link)
     return (
       <div className="visitor-loading">
-        <h1>Link unavailable</h1>
-        <p>{error || "This link is not published."}</p>
+        <h1>{error ? "Could not load bundle options" : "Link unavailable"}</h1>
+        <p className="error" role="alert">{error || "This link is not published."}</p>
+        <button className="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+          <RefreshCw size={16} /> Retry
+        </button>
       </div>
     );
   return (
@@ -1779,8 +1776,8 @@ function VisitorPage() {
             <div className="success-icon">
               <Check size={26} />
             </div>
-            <h2>Thank You for Your Purchase!</h2>
-            <p>Thank you for buying Starlink bundles.</p>
+            <h2>Order received</h2>
+            <p>Your order has been saved. Payment remains pending until independently verified.</p>
             <dl className="order-summary">
               <div><dt>Bundle</dt><dd>{result.order.bundle_name || bundle?.name}</dd></div>
               <div><dt>Validity</dt><dd>{bundle?.validity || "—"}</dd></div>
@@ -1814,9 +1811,15 @@ function VisitorPage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={submit}>
-            
-<div className="visitor-bundles">
+          <form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+            {link.bundles.length === 0 ? (
+              <div className="visitor-loading" role="status">
+                <p>No bundle options are currently available for this link.</p>
+                <button type="button" className="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                  <RefreshCw size={16} /> Retry
+                </button>
+              </div>
+            ) : <div className="visitor-bundles">
   {link.bundles.map((b) => (
     <button
       type="button"
@@ -1831,13 +1834,14 @@ function VisitorPage() {
       <div className="visitor-price">{usd(b.price)}</div>
     </button>
   ))}
-</div>
+            </div>}
+            {error && <p className="error" role="alert">{error}</p>}
 <button
   type="button"
   className="visitor-submit"
-  disabled={!bundle}
+  disabled={!bundle || busy}
   onClick={() => {
-    setPaymentError("");
+    setError("");
     setShowPaymentPopup(true);
   }}
 >
@@ -1846,19 +1850,19 @@ function VisitorPage() {
 
 {showPaymentPopup && (
   <div className="payment-popup-overlay">
-    <div className="payment-popup">
+    <div className="payment-popup" role="dialog" aria-modal="true" aria-labelledby="visitor-order-title">
       <button
         type="button"
         className="payment-popup-close"
+        aria-label="Close order form"
         onClick={() => {
           setShowPaymentPopup(false);
-          setPaymentError("");
         }}
       >
-        
+        <X size={18} />
       </button>
 
-      <h2>EcoCash Payment</h2>
+      <h2 id="visitor-order-title">Submit order</h2>
       <p>Plan: {bundle?.name}</p>
       <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
 
@@ -1871,56 +1875,15 @@ function VisitorPage() {
         placeholder="7xxxxxxxx"
       />
       <p className="small muted">
-        Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
+        Payment verification is not connected. No payment is made by submitting this order. Do not enter an EcoCash PIN or one-time code here.
       </p>
-      {paymentError && <p className="error" role="alert">{paymentError}</p>}
-
-     
-          <button
-            type="button"
-            className="payment-popup-close"
-            aria-label="Close payment popup"
-            onClick={() => {
-              setShowPaymentPopup(false);
-              setPaymentError("");
-            }}
-          >
-            ×
-          </button>
-
-          <h2>EcoCash Payment</h2>
-          <p>Plan: {bundle?.name}</p>
-          <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
-
-          <label htmlFor="payment-phone">Phone number</label>
-          <input
-            id="payment-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="0712345678"
-          />
-
-          <p className="small muted">
-            Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
-          </p>
-
-          {paymentError && (
-            <p className="error" role="alert">
-              {paymentError}
-            </p>
-          )}
-
-          <button
-            type="button"
-            className="visitor-submit"
-            onClick={submitPayment}
-          >
-            Submit
-          </button>
-        </div>
-      </div>
-    )}
+      {error && <p className="error" role="alert">{error}</p>}
+      <button type="button" className="visitor-submit" disabled={busy || !phone.trim()} onClick={() => void submit()}>
+        {busy ? "Submitting order…" : "Submit order"}
+      </button>
+    </div>
+  </div>
+)}
         </form>
 
         )}
