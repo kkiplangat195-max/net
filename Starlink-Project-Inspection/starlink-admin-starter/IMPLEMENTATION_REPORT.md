@@ -27,12 +27,17 @@ These points are code inspection findings. Database-backed behavior was not exer
 - API failures now log sanitized diagnostics and distinguish CORS (403), database/schema/connectivity errors (503), and other errors (500) without exposing internal details to clients.
 - Customer notification settings now cap link permissions; customer disablement prevents new order notification enqueueing. Phone and amount are configurable; phone is opt-in.
 - Added an authenticated Telegram bot `getMe` check, made customer tests use only the saved destination, and fixed route order so the link-specific test endpoint is reachable.
-- Manual retry is limited to failed records. The Admin displays attempt history, previews saved link configuration, and filters the latest 200 orders by customer/link/reference/bundle/payment/notification/date.
+- Manual retry is limited to failed records. The Admin displays attempt history and previews saved link configuration.
 - The visitor confirmation page now displays the requested success heading/message, accepted order's bundle and validity, USD price, reference, actual payment status, queued-notification state, and a Done action returning to the plans on the same link. Confirmation follows the database RPC response and does not wait for Telegram delivery.
 - Queued Telegram messages now include bundle validity and continue to use the saved link recipient, master switch, and independent phone/amount permissions. Duplicate responses expose the same notification state as new submissions.
+- Production frontend API requests require `VITE_API_URL`; only Vite development mode defaults to localhost. Removed hardcoded fallback bundle records from customer-facing/Admin bundle data loading.
+- Link editing now submits edited phone/amount notification preferences. Orders use validated server-side filters and pagination (50 per page, capped at 100), with total counts returned to the frontend.
+- Customer/link/order empty states render only after successful API responses; backend errors remain visible instead of masquerading as empty data.
+- API failures remain visible while empty states only render after successful loads; Telegram status failures are not mislabeled as configured bot tokens.
 - Added focused backend tests in `backend/test/domain.test.js`.
 - Added static migration/API contract and readiness/queue diagnostic tests in `backend/test/schema-contract.test.js`.
 - Added read-only `backend/supabase/verify_schema.sql` to report the required table/function presence and detailed readiness result after migration 003/004.
+- Reformatted the existing bundle seed in `backend/supabase/migrations/001_initial.sql` so the `INSERT INTO ... VALUES` header and every tuple are explicit; seed values and `ON CONFLICT (bundle_id) DO NOTHING` are unchanged.
 - Added backend/frontend `package-lock.json` files after inspecting manifests and installing dependencies.
 - Updated README migration instructions, `IMPLEMENTATION_AUDIT.md`, and this report.
 
@@ -41,6 +46,8 @@ These points are code inspection findings. Database-backed behavior was not exer
 Migration order for an empty database: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`, then `004_schema_readiness_and_api_grants.sql`. There is no migration runner configured. For an existing project, inspect the schema and migration history, back up, and apply only missing files. 001's table/index creation is `IF NOT EXISTS` and catalog seeds are `ON CONFLICT DO NOTHING`; 002 has `IF NOT EXISTS` for additions but its `UPDATE` resets customer/link `phone` notification preferences to false when run, so do not rerun it after preferences have been changed. 003's function replacement/cache notification is rerunnable. 004's grants, RLS enabling, indexes, conditional foreign keys, function search-path settings, and same-signature function replacement are rerunnable and do not alter data rows. If legacy rows violate a missing FK, migration 004 fails without deleting them; inspect and remediate those rows deliberately before retrying. None of the migrations was applied here: no Supabase credentials/authorization, `psql`, or Supabase CLI were available.
 
 In Supabase SQL Editor, first use the read-only preflight query in `README.md`, compare object definitions (not just migration-history rows), then run only missing migration files in order. After applying 003 or 004, run `select public.notification_schema_status();`; it checks objects, columns, FKs/indexes, RLS, and grants. Verify `https://net-a5jw.onrender.com/health` returns HTTP 200 and `databaseReady: true`. A 503 with `schemaCheckError: "PGRST202"` means the status RPC is not visible or 003/004 is missing; `missingObjects` reports exact unmet requirements. Migrations 003 and 004 send PostgREST cache reload notifications; if status remains unavailable, reload the schema cache in Supabase API settings.
+
+The reported syntax error at `'15gb-7d'` occurs when a values tuple is executed by itself. The migration contains the required `INSERT INTO public.bundle_catalog (...) VALUES` header before the tuple. Run the full `001_initial.sql` file, or run the full seed statement from its `INSERT INTO` header through `ON CONFLICT (bundle_id) DO NOTHING;`; do not select and execute an individual tuple.
 
 ## Configuration Needed
 
@@ -51,10 +58,11 @@ EcoCash: no authorized provider contract, merchant credentials, initiation adapt
 ## Tests Executed
 
 - ZIP `unzip -t`: passed; all non-self-referential checksums from the archive manifest matched the original ZIP entries.
-- Backend `npm test`: 18 tests passed, including read-only verification-SQL coverage, migration terminators, schema readiness, queue gating/backoff, API error classification, and CORS.
+- Backend `npm test`: 24 tests passed, including malformed-token and schema-column checks, bundle seed safety, order filter validation/pagination, API/frontend contracts, schema readiness, queue gating/backoff, API error classification, and CORS.
 - Backend `node --check src/index.js`: passed.
 - Frontend `npm run build`: TypeScript build and optimized Vite production build passed.
 - `git diff --check`: passed.
+- No SQL parser/client (`psql`, Supabase CLI, `pg_format`, `pgsanity`, or `sqlfluff`) was available; migrations received source review/static contract tests but were not parsed or executed against PostgreSQL.
 - `npm install` in backend and frontend: completed; npm reported zero vulnerabilities. Frontend install warned that the `esbuild` install script was not approved; the production build still succeeded.
 - Conflict-marker scan: none found.
 
@@ -66,7 +74,7 @@ To inspect and apply migrations safely in Supabase: first take a database backup
 
 - Telegram delivery is at-least-once. A crash after Telegram accepts a message but before the database records success may result in a duplicate delivery.
 - Browser idempotency is retained for page-session retries, not across a reload after an ambiguous response.
-- Orders are filtered client-side among the newest 200 API results; older orders need server-side pagination/search.
+- Orders use server-side filters and pagination. Supabase integration behavior for nested notification filters/counts remains unverified without live database access.
 - The visitor form configuration remains phone-only; link preview is a saved configuration preview, not an interactive visitor session.
 - The source is a starter snapshot, not the confirmed original GitHub project. Original visitor assets, existing production configuration, and authorized EcoCash flow are absent.
 - No separate order PIN exists in the source: there is no PIN field, generation, or validation in the visitor order flow. The only PIN context is the EcoCash wallet authentication credential, which existing project instructions prohibit collecting or forwarding. Therefore no PIN preference/UI/migration/Telegram payload was added. Do not enable PIN delivery until a non-authentication order code is identified and authorized.

@@ -36,60 +36,12 @@ import {
 import "./style.css";
 import "./order-confirmation.css";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(
-  /\/$/,
-  "",
-);
-const DEFAULT_BUNDLES = [
-  {
-    id: "5gb-trial",
-    name: "5GB Data",
-    validity: "2-Day Trial",
-    price: 0,
-    currency: "USD",
-    description: "A free 2-day trial",
-    enabled: true,
-  },
-  {
-    id: "15gb-7d",
-    name: "15GB Data",
-    validity: "7-Day Plan",
-    price: 0.99,
-    currency: "USD",
-    description: "15GB for 7 days",
-    enabled: true,
-  },
-  {
-    id: "35gb-14d",
-    name: "35GB Data",
-    validity: "14-Day Plan",
-    price: 1.99,
-    currency: "USD",
-    description: "35GB for 14 days",
-    enabled: true,
-  },
-  {
-    id: "50gb-21d",
-    name: "50GB Data",
-    validity: "21-Day Plan",
-    price: 2.99,
-    currency: "USD",
-    description: "50GB for 21 days",
-    enabled: true,
-  },
-  {
-    id: "unlimited-30d",
-    name: "Unlimited",
-    validity: "30-Day Plan",
-    price: 3.99,
-    currency: "USD",
-    description: "Unlimited data for 30 days",
-    enabled: true,
-  },
-];
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const API = (configuredApiUrl || (import.meta.env.DEV ? "http://localhost:8080" : "")).replace(/\/$/, "");
 const usd = (n) => (Number(n) === 0 ? "FREE" : `USD ${Number(n).toFixed(2)}`);
 const token = () => localStorage.getItem("adminToken");
 async function api(path, options = {}) {
+  if (!API) throw new Error("Backend URL is not configured. Set VITE_API_URL in the frontend deployment.");
   const response = await fetch(`${API}${path}`, {
     ...options,
     headers: {
@@ -273,12 +225,14 @@ function Section({ section, onNavigate }) {
   const [links, setLinks] = useState([]);
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [bundleCatalog, setBundleCatalog] = useState(DEFAULT_BUNDLES);
+  const [bundleCatalog, setBundleCatalog] = useState([]);
   const [telegramStatus, setTelegramStatus] = useState(null);
   const [telegramChecking, setTelegramChecking] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
   const [showLink, setShowLink] = useState(false);
   const [query, setQuery] = useState("");
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPagination, setOrdersPagination] = useState({ page: 1, pageSize: 50, total: 0, totalPages: 0 });
   const [orderFilters, setOrderFilters] = useState({ customerId: "", linkId: "", orderRef: "", bundleId: "", paymentStatus: "", notificationStatus: "", from: "", to: "" });
   async function load() {
     setLoading(true);
@@ -301,21 +255,26 @@ function Section({ section, onNavigate }) {
         const r = await api("/api/admin/links");
         setLinks(r.links || []);
         const b = await api("/api/admin/bundles");
-        setBundleCatalog(b.bundles || DEFAULT_BUNDLES);
+        setBundleCatalog(b.bundles || []);
       }
       if (section === "Bundles") {
         const b = await api("/api/admin/bundles");
-        setBundleCatalog(b.bundles || DEFAULT_BUNDLES);
+        setBundleCatalog(b.bundles || []);
       }
       if (section === "Orders") {
-        const r = await api("/api/admin/orders");
+        const params = new URLSearchParams({ page: String(ordersPage), pageSize: "50" });
+        for (const [key, value] of Object.entries(orderFilters)) {
+          if (value) params.set(key, value);
+        }
+        const r = await api(`/api/admin/orders?${params.toString()}`);
         setOrders(r.orders || []);
+        setOrdersPagination(r.pagination || { page: ordersPage, pageSize: 50, total: r.orders?.length || 0, totalPages: 1 });
         const [linkResult, bundleResult] = await Promise.all([
           api("/api/admin/links"),
           api("/api/admin/bundles"),
         ]);
         setLinks(linkResult.links || []);
-        setBundleCatalog(bundleResult.bundles || DEFAULT_BUNDLES);
+        setBundleCatalog(bundleResult.bundles || []);
       }
       if (section === "Notifications") {
         const r = await api("/api/admin/notifications");
@@ -325,7 +284,7 @@ function Section({ section, onNavigate }) {
         try {
           setTelegramStatus(await api("/api/admin/telegram/status"));
         } catch (statusError) {
-          setTelegramStatus({ configured: true, connected: false, error: statusError.message });
+          setTelegramStatus({ configured: null, connected: false, error: statusError.message });
         }
       }
     } catch (e) {
@@ -336,7 +295,7 @@ function Section({ section, onNavigate }) {
   }
   useEffect(() => {
     load();
-  }, [section, refresh]);
+  }, [section, refresh, ordersPage, orderFilters]);
   function notify(msg) {
     setToast(msg);
     window.setTimeout(() => setToast(""), 3500);
@@ -346,7 +305,7 @@ function Section({ section, onNavigate }) {
     try {
       setTelegramStatus(await api("/api/admin/telegram/status"));
     } catch (statusError) {
-      setTelegramStatus({ configured: true, connected: false, error: statusError.message });
+      setTelegramStatus({ configured: null, connected: false, error: statusError.message });
     } finally {
       setTelegramChecking(false);
     }
@@ -354,18 +313,13 @@ function Section({ section, onNavigate }) {
   const filteredCustomers = customers.filter((c) =>
     `${c.name} ${c.notes || ""}`.toLowerCase().includes(query.toLowerCase()),
   );
-  const filteredOrders = orders.filter((order) => {
-    const notificationStatus = order.notifications?.[0]?.status || "not queued";
-    const submittedDate = order.created_at.slice(0, 10);
-    return (!orderFilters.customerId || order.customer_id === orderFilters.customerId)
-      && (!orderFilters.linkId || order.link_id === orderFilters.linkId)
-      && (!orderFilters.orderRef || order.order_ref.toLowerCase().includes(orderFilters.orderRef.toLowerCase()))
-      && (!orderFilters.bundleId || order.bundle_id === orderFilters.bundleId)
-      && (!orderFilters.paymentStatus || order.payment_status === orderFilters.paymentStatus)
-      && (!orderFilters.notificationStatus || notificationStatus === orderFilters.notificationStatus)
-      && (!orderFilters.from || submittedDate >= orderFilters.from)
-      && (!orderFilters.to || submittedDate <= orderFilters.to);
-  });
+  const filteredLinks = links.filter((link) =>
+    `${link.name} ${link.customers?.name || ""}`.toLowerCase().includes(query.toLowerCase()),
+  );
+  function updateOrderFilter(key, value) {
+    setOrdersPage(1);
+    setOrderFilters((old) => ({ ...old, [key]: value }));
+  }
   return (
     <>
       <div className="page-heading">
@@ -456,10 +410,10 @@ function Section({ section, onNavigate }) {
                     onError={setError}
                   />
                 ))}
-                {!filteredCustomers.length && (
+                {!loading && !error && !filteredCustomers.length && (
                   <EmptyRow
                     colSpan={5}
-                    text="No customers yet. Create your first customer to get started."
+                    text={customers.length ? "No customers match this search." : "No customer records exist yet."}
                   />
                 )}
               </tbody>
@@ -493,13 +447,7 @@ function Section({ section, onNavigate }) {
                 </tr>
               </thead>
               <tbody>
-                {links
-                  .filter((l) =>
-                    `${l.name} ${l.customers?.name || ""}`
-                      .toLowerCase()
-                      .includes(query.toLowerCase()),
-                  )
-                  .map((l) => (
+                {filteredLinks.map((l) => (
                     <LinkRow
                       key={l.id}
                       link={l}
@@ -508,10 +456,10 @@ function Section({ section, onNavigate }) {
                       onToast={notify}
                     />
                   ))}
-                {!links.length && (
+                {!loading && !error && !filteredLinks.length && (
                   <EmptyRow
                     colSpan={6}
-                    text="No links generated. Create a customer first, then generate a link."
+                    text={links.length ? "No links match this search." : "No visitor links exist yet."}
                   />
                 )}
               </tbody>
@@ -530,14 +478,14 @@ function Section({ section, onNavigate }) {
       {section === "Orders" && (
         <>
         <div className="toolbar order-filters">
-          <input aria-label="Filter by order reference" placeholder="Order reference" value={orderFilters.orderRef} onChange={(e) => setOrderFilters((old) => ({ ...old, orderRef: e.target.value }))} />
-          <select aria-label="Filter by customer" value={orderFilters.customerId} onChange={(e) => setOrderFilters((old) => ({ ...old, customerId: e.target.value }))}><option value="">All customers</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select>
-          <select aria-label="Filter by link" value={orderFilters.linkId} onChange={(e) => setOrderFilters((old) => ({ ...old, linkId: e.target.value }))}><option value="">All links</option>{links.map((link) => <option key={link.id} value={link.id}>{link.name}</option>)}</select>
-          <select aria-label="Filter by bundle" value={orderFilters.bundleId} onChange={(e) => setOrderFilters((old) => ({ ...old, bundleId: e.target.value }))}><option value="">All bundles</option>{bundleCatalog.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.name}</option>)}</select>
-          <select aria-label="Filter by payment status" value={orderFilters.paymentStatus} onChange={(e) => setOrderFilters((old) => ({ ...old, paymentStatus: e.target.value }))}><option value="">All payment states</option>{["pending", "paid", "failed", "cancelled", "refunded"].map((status) => <option key={status}>{status}</option>)}</select>
-          <select aria-label="Filter by notification status" value={orderFilters.notificationStatus} onChange={(e) => setOrderFilters((old) => ({ ...old, notificationStatus: e.target.value }))}><option value="">All notification states</option>{["not queued", "queued", "processing", "sent", "failed"].map((status) => <option key={status}>{status}</option>)}</select>
-          <label>From<input type="date" value={orderFilters.from} onChange={(e) => setOrderFilters((old) => ({ ...old, from: e.target.value }))} /></label>
-          <label>To<input type="date" value={orderFilters.to} onChange={(e) => setOrderFilters((old) => ({ ...old, to: e.target.value }))} /></label>
+          <input aria-label="Filter by order reference" placeholder="Order reference" value={orderFilters.orderRef} onChange={(e) => updateOrderFilter("orderRef", e.target.value)} />
+          <select aria-label="Filter by customer" value={orderFilters.customerId} onChange={(e) => updateOrderFilter("customerId", e.target.value)}><option value="">All customers</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select>
+          <select aria-label="Filter by link" value={orderFilters.linkId} onChange={(e) => updateOrderFilter("linkId", e.target.value)}><option value="">All links</option>{links.map((link) => <option key={link.id} value={link.id}>{link.name}</option>)}</select>
+          <select aria-label="Filter by bundle" value={orderFilters.bundleId} onChange={(e) => updateOrderFilter("bundleId", e.target.value)}><option value="">All bundles</option>{bundleCatalog.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.name}</option>)}</select>
+          <select aria-label="Filter by payment status" value={orderFilters.paymentStatus} onChange={(e) => updateOrderFilter("paymentStatus", e.target.value)}><option value="">All payment states</option>{["pending", "paid", "failed", "cancelled", "refunded"].map((status) => <option key={status}>{status}</option>)}</select>
+          <select aria-label="Filter by notification status" value={orderFilters.notificationStatus} onChange={(e) => updateOrderFilter("notificationStatus", e.target.value)}><option value="">All notification states</option>{["not queued", "queued", "processing", "sent", "failed"].map((status) => <option key={status}>{status}</option>)}</select>
+          <label>From<input type="date" value={orderFilters.from} onChange={(e) => updateOrderFilter("from", e.target.value)} /></label>
+          <label>To<input type="date" value={orderFilters.to} onChange={(e) => updateOrderFilter("to", e.target.value)} /></label>
         </div>
         <div className="panel table-panel">
           <table>
@@ -552,7 +500,7 @@ function Section({ section, onNavigate }) {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((o) => (
+              {orders.map((o) => (
                 <tr key={o.id}>
                   <td>
                     <b className="mono">{o.order_ref}</b>
@@ -576,14 +524,21 @@ function Section({ section, onNavigate }) {
                   <td>{new Date(o.created_at).toLocaleString()}</td>
                 </tr>
               ))}
-              {!filteredOrders.length && (
+              {!loading && !error && !orders.length && (
                 <EmptyRow
                   colSpan={6}
-                  text={orders.length ? "No orders match these filters." : "Orders will appear here when visitors submit a bundle request."}
+                  text="No orders match these filters or no order records exist."
                 />
               )}
             </tbody>
           </table>
+        </div>
+        <div className="toolbar pagination-controls">
+          <span className="muted small">{ordersPagination.total} orders · Page {ordersPagination.page} of {Math.max(ordersPagination.totalPages, 1)}</span>
+          <div className="row-actions">
+            <button className="secondary compact" disabled={ordersPage <= 1 || loading} onClick={() => setOrdersPage((page) => Math.max(1, page - 1))}>Previous</button>
+            <button className="secondary compact" disabled={ordersPage >= ordersPagination.totalPages || loading} onClick={() => setOrdersPage((page) => page + 1)}>Next</button>
+          </div>
         </div>
         </>
       )}
@@ -659,7 +614,7 @@ function Section({ section, onNavigate }) {
                   </td>
                 </tr>
               ))}
-              {!notifications.length && (
+              {!loading && !error && !notifications.length && (
                 <EmptyRow
                   colSpan={8}
                   text="No notification events recorded yet."
@@ -692,7 +647,7 @@ function Section({ section, onNavigate }) {
               it to Vercel public variables.
             </p>
             <span className={`pill ${telegramStatus?.connected ? "enabled" : "pending"}`}>
-              {!telegramStatus ? "Not checked" : !telegramStatus.configured ? "Token not configured" : telegramStatus.connected ? `Connected as @${telegramStatus.bot?.username || "bot"}` : telegramStatus.error || "Connection failed"}
+              {!telegramStatus ? "Not checked" : telegramStatus.configured === false ? "Token not configured" : telegramStatus.connected ? `Connected as @${telegramStatus.bot?.username || "bot"}` : telegramStatus.error || "Verification unavailable"}
             </span>
             <p className="small muted">Bot API verification does not verify any saved customer Chat ID.</p>
             <button className="secondary compact" onClick={testTelegramBot} disabled={telegramChecking}>
@@ -904,6 +859,9 @@ function BundleManager({ bundles, onSaved, onError, onToast }) {
     }
   }
   return (
+    drafts.length === 0 ? (
+      <div className="panel empty-state">No bundle catalog records are available from the backend.</div>
+    ) : (
     <div className="bundle-admin-list">
       {drafts.map((b, i) => (
         <div className="panel bundle-admin-row" key={b.id}>
@@ -983,6 +941,7 @@ function BundleManager({ bundles, onSaved, onError, onToast }) {
         </div>
       ))}
     </div>
+    )
   );
 }
 
@@ -1426,7 +1385,7 @@ function LinkEditModal({ link, onClose, onError, onSaved }) {
           notificationsEnabled: notify,
           paymentInstructions: instructions,
           formConfig: link.form_config || { phoneRequired: true },
-          notificationPreferences: link.notification_preferences || {
+          notificationPreferences: {
             newOrder: link.notification_preferences?.newOrder !== false,
             phone: includePhone,
             amount: includeAmount,
@@ -1534,7 +1493,7 @@ function LinkEditModal({ link, onClose, onError, onSaved }) {
 
 function LinkModal({
   customers,
-  catalog = DEFAULT_BUNDLES,
+  catalog = [],
   onClose,
   onCreated,
   onError,

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assertPublishableLink, formatOrderNotification, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from '../src/domain.js';
+import { escapeLikePattern, orderFiltersSchema, orderRange } from '../src/order-filters.js';
 
 const catalog = [
   { bundle_id: '15gb-7d', name: '15GB Data', validity: '7-Day Plan', price: '0.99', description: '15GB for 7 days', enabled: true, promotional_label: '' },
@@ -71,4 +72,13 @@ test('order notification fields remain independent and never contain an authenti
   assert.doesNotMatch(amountOnly, /Phone:|\b1234\b/);
   assert.equal(formatOrderNotification(job, { newOrder: false }), null);
   assert.equal(formatOrderNotification(job, {}, false), null);
+});
+
+test('order filters validate dates and statuses and produce bounded server ranges', () => {
+  assert.equal(orderFiltersSchema.safeParse({ page: '2', pageSize: '25', from: '2026-02-01', to: '2026-02-28' }).success, true);
+  assert.equal(orderFiltersSchema.safeParse({ from: '2026-02-30' }).success, false);
+  assert.equal(orderFiltersSchema.safeParse({ from: '2026-03-02', to: '2026-03-01' }).success, false);
+  assert.equal(orderFiltersSchema.safeParse({ pageSize: '101' }).success, false);
+  assert.deepEqual(orderRange(3, 50), { from: 100, to: 149 });
+  assert.equal(escapeLikePattern('a%_b'), String.raw`a\%\_b`);
 });

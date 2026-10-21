@@ -133,10 +133,21 @@ create table if not exists public.bundle_catalog (
   updated_at timestamptz not null default now()
 );
 alter table public.bundle_catalog enable row level security;
-insert into public.bundle_catalog(bundle_id,name,validity,price,currency,description,enabled,promotional_label,sort_order) values
- ('5gb-trial','5GB Data','2-Day Trial',0,'USD','A free 2-day trial',true,'FREE TRIAL',1),
- ('15gb-7d','15GB Data','7-Day Plan',0.99,'USD','15GB for 7 days',true,'',2),
- ('35gb-14d','35GB Data','14-Day Plan',1.99,'USD','35GB for 14 days',true,'',3),
- ('50gb-21d','50GB Data','21-Day Plan',2.99,'USD','50GB for 21 days',true,'',4),
- ('unlimited-30d','Unlimited','30-Day Plan',3.99,'USD','Unlimited data for 30 days',true,'POPULAR',5)
+insert into public.bundle_catalog (
+  bundle_id,
+  name,
+  validity,
+  price,
+  currency,
+  description,
+  enabled,
+  promotional_label,
+  sort_order
+)
+values
+  ('5gb-trial', '5GB Data', '2-Day Trial', 0, 'USD', 'A free 2-day trial', true, 'FREE TRIAL', 1),
+  ('15gb-7d', '15GB Data', '7-Day Plan', 0.99, 'USD', '15GB for 7 days', true, '', 2),
+  ('35gb-14d', '35GB Data', '14-Day Plan', 1.99, 'USD', '35GB for 14 days', true, '', 3),
+  ('50gb-21d', '50GB Data', '21-Day Plan', 2.99, 'USD', '50GB for 21 days', true, '', 4),
+  ('unlimited-30d', 'Unlimited', '30-Day Plan', 3.99, 'USD', 'Unlimited data for 30 days', true, 'POPULAR', 5)
 on conflict (bundle_id) do nothing;

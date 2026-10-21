@@ -155,6 +155,8 @@ Set this Vercel environment variable:
 VITE_API_URL=https://YOUR-RENDER-SERVICE.onrender.com
 ```
 
+Production builds do not fall back to localhost or mock bundle data. Configure `VITE_API_URL` in Vercel before deployment; a missing value produces a visible API configuration error. The local development default remains `http://localhost:8080`.
+
 Redeploy after changing environment variables. Then update Render's `FRONTEND_URL` and `PUBLIC_APP_URL` to the actual frontend origin and redeploy the backend. `PUBLIC_APP_URL` is required before publishing links.
 
 ## 7. API behavior and safety notes
@@ -164,6 +166,7 @@ Redeploy after changing environment variables. Then update Render's `FRONTEND_UR
 - Draft, unpublished, and disabled links reject submissions.
 - Bundle price and currency are taken from the saved link bundle snapshot, never from a visitor's request body.
 - Duplicate submission keys are unique in the database; order creation and notification enqueueing run in one PostgreSQL function.
+- `/api/admin/orders` validates page/pageSize and customer, link, reference, bundle, payment, notification, and date filters server-side; it returns `pagination` metadata. Page size is limited to 100.
 - Payment status remains pending. No order submission or redirect is treated as proof of payment.
 - The backend never collects an EcoCash wallet PIN.
 - Set strict CORS origins. Do not use `*` in production.

@@ -17,6 +17,7 @@ const migration004 = readFileSync(resolve(directory, '../supabase/migrations/004
 const verificationSql = readFileSync(resolve(directory, '../supabase/verify_schema.sql'), 'utf8');
 const apiSource = readFileSync(resolve(directory, '../src/index.js'), 'utf8');
 const healthSource = readFileSync(resolve(directory, '../src/database-health.js'), 'utf8');
+const frontendSource = readFileSync(resolve(directory, '../../frontend/src/main.jsx'), 'utf8');
 
 test('ordered migrations define all queried tables and queue RPC signatures', () => {
   for (const table of ['customers', 'visitor_links', 'orders', 'notifications', 'bundle_catalog']) {
@@ -41,10 +42,35 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.match(migration004, /grant execute on function public\.claim_notifications\(integer\) to service_role/i);
   assert.match(migration004, /client_rls_policies_restricted/i);
   assert.match(migration004, /notify pgrst, 'reload schema'/i);
+  for (const malformedToken of [/\bisnot\b/i, /\bnullthen\b/i, /'public'and/i, /'public'\s+andindexname/i, /\belsefalse\b/i, /\bandpg_catalog\b/i]) {
+    assert.doesNotMatch(migration004, malformedToken);
+  }
   assert.doesNotMatch(`${migration001}\n${migration002}\n${migration003}\n${migration004}`, /\bdrop\s+(table|schema|function)\b/i);
   assert.doesNotMatch(migration004, /\b(update|delete|truncate)\s+(public\.)?(customers|visitor_links|orders|notifications|bundle_catalog)\b/i);
   for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
     assert.ok(migration004.includes(`'${objectName}'`), `readiness migration omits ${objectName}`);
+  }
+});
+
+test('schema readiness column counts and lists match the table definitions', () => {
+  const expected = {
+    customers: ['id', 'name', 'notes', 'telegram_chat_id', 'notifications_enabled', 'notification_preferences', 'created_at', 'updated_at'],
+    visitor_links: ['id', 'customer_id', 'name', 'token', 'token_hash', 'status', 'bundles', 'form_config', 'payment_instructions', 'telegram_chat_id', 'notifications_enabled', 'notification_preferences', 'config_version', 'created_at', 'updated_at'],
+    orders: ['id', 'order_ref', 'idempotency_key', 'customer_id', 'link_id', 'bundle_id', 'bundle_name', 'amount', 'currency', 'phone', 'payment_status', 'payment_provider_reference', 'created_at'],
+    notifications: ['id', 'order_id', 'customer_id', 'link_id', 'intended_chat_id', 'event_type', 'config_version', 'message_fields', 'status', 'attempts', 'next_attempt_at', 'last_error', 'created_at', 'sent_at', 'processing_started_at'],
+    notification_attempts: ['id', 'notification_id', 'attempt_number', 'status', 'error', 'attempted_at'],
+    bundle_catalog: ['bundle_id', 'name', 'validity', 'price', 'currency', 'description', 'enabled', 'promotional_label', 'sort_order', 'updated_at']
+  };
+  const counts = { customers: 8, visitor_links: 15, orders: 13, notifications: 15, notification_attempts: 6, bundle_catalog: 10 };
+  for (const [table, columns] of Object.entries(expected)) {
+    assert.equal(columns.length, counts[table]);
+    const marker = `'${table}_columns'`;
+    const start = migration004.indexOf(marker);
+    assert.notEqual(start, -1, `${table} readiness flag is missing`);
+    const end = migration004.indexOf('),', start);
+    const clause = migration004.slice(start, end);
+    assert.match(clause, new RegExp(`count\\(distinct column_name\\) = ${counts[table]}`));
+    for (const column of columns) assert.ok(clause.includes(`'${column}'`), `${table}.${column} readiness check is missing`);
   }
 });
 
@@ -75,10 +101,38 @@ test('customer and link schemas retain API columns, foreign keys, indexes, and R
   assert.match(apiSource, /from\('customers'\)\.insert\(\{ name: p\.data\.name/);
 });
 
+test('bundle seed is a complete insert statement and preserves configured prices on rerun', () => {
+  assert.match(migration001, /insert into public\.bundle_catalog\s*\([\s\S]*?\)\s*values\s*\([\s\S]*?'15gb-7d'[\s\S]*?\)\s*on conflict \(bundle_id\) do nothing;/i);
+  assert.match(migration001, /'15gb-7d', '15GB Data', '7-Day Plan', 0\.99, 'USD'/);
+  assert.match(migration001, /'35gb-14d', '35GB Data', '14-Day Plan', 1\.99, 'USD'/);
+  assert.match(migration001, /'50gb-21d', '50GB Data', '21-Day Plan', 2\.99, 'USD'/);
+});
+
 test('API claim RPC matches the SQL parameter and consumes a row array', () => {
   assert.match(apiSource, /rpc\('claim_notifications',\s*\{\s*p_limit:\s*10\s*\}\)/);
   assert.match(apiSource, /for\s*\(const job of jobs \|\| \[\]\)/);
   assert.match(healthSource, /rpc\('notification_schema_status'\)/);
+});
+
+test('order API validates filters and paginates the real database result', () => {
+  assert.match(apiSource, /orderFiltersSchema\.safeParse\(req\.query\)/);
+  assert.match(apiSource, /\.range\(from, to\)/);
+  assert.match(apiSource, /count: 'exact'/);
+  assert.match(frontendSource, /\/api\/admin\/orders\?\$\{params\.toString\(\)\}/);
+  assert.match(frontendSource, /ordersPagination\.totalPages/);
+});
+
+test('production frontend requires VITE_API_URL and has no mock bundle fallback', () => {
+  assert.match(frontendSource, /import\.meta\.env\.VITE_API_URL/);
+  assert.match(frontendSource, /import\.meta\.env\.DEV \? "http:\/\/localhost:8080" : ""/);
+  assert.match(frontendSource, /Backend URL is not configured/);
+  assert.doesNotMatch(frontendSource, /DEFAULT_BUNDLES/);
+});
+
+test('frontend link editing sends the independently edited notification preferences', () => {
+  assert.match(frontendSource, /notificationPreferences:\s*\{\s*newOrder:\s*link\.notification_preferences\?\.newOrder\s*!==\s*false,\s*phone:\s*includePhone,\s*amount:\s*includeAmount/s);
+  assert.match(frontendSource, /\{!loading && !error && !filteredCustomers\.length/);
+  assert.match(frontendSource, /\{!loading && !error && !orders\.length/);
 });
 
 test('queue diagnostics throttle repeats and redact credentials and PIN-like values', () => {
@@ -135,6 +189,9 @@ test('database API failures return service-unavailable without leaking diagnosti
   assert.equal(apiFailureStatus({ code: '42703' }), 503);
   assert.equal(apiFailureStatus({ code: '42501' }), 503);
   assert.equal(apiFailureStatus({ code: '08006' }), 503);
+  assert.equal(apiFailureStatus({ code: 'fetch_failed' }), 503);
+  assert.equal(apiFailureStatus({ code: 'ETIMEDOUT' }), 503);
+  assert.equal(apiFailureStatus({ name: 'AbortError' }), 503);
   assert.equal(apiFailureStatus({ code: '23505' }), 500);
   assert.equal(apiFailureStatus({ status: 403 }), 403);
   assert.equal(apiFailureStatus(new Error('internal')), 500);

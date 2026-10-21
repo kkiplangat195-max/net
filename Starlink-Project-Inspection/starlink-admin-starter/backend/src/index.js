@@ -12,6 +12,7 @@ import { apiFailureStatus } from './api-errors.js';
 import { assertPublishableLink, formatOrderNotification, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from './domain.js';
 import { inspectDatabaseSchema } from './database-health.js';
 import { getAllowedOrigins } from './cors-origins.js';
+import { escapeLikePattern, orderFiltersSchema, orderRange } from './order-filters.js';
 import { createQueueBackoff, queueErrorLogDue, runQueueWhenReady, safeQueueErrorDetails } from './queue-diagnostics.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'ADMIN_EMAIL', 'ADMIN_PASSWORD_HASH', 'JWT_SECRET'];
@@ -237,10 +238,34 @@ app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req,
   res.status(201).json({ order: data, paymentInstructions: link.payment_instructions, payment: { provider: 'ecocash', initiated: false, reason: 'provider_not_configured' }, message: 'Order received. No automated EcoCash payment request was initiated because an authorized provider integration is not configured. Payment remains pending until independently verified.' });
 }));
 app.get('/api/admin/orders', ...adminRoute, asyncRoute(async (req, res) => {
-  let q = supabase.from('orders').select('*,customers(name),visitor_links(name),notifications(status)').order('created_at', { ascending: false }).limit(200);
-  if (req.query.customerId) q = q.eq('customer_id', req.query.customerId); if (req.query.linkId) q = q.eq('link_id', req.query.linkId);
-  if (req.query.paymentStatus) q = q.eq('payment_status', req.query.paymentStatus);
-  const { data, error } = await q; if (error) throw error; res.json({ orders: data });
+  const filters = orderFiltersSchema.safeParse(req.query);
+  if (!filters.success) return res.status(400).json({ error: 'Invalid order filters.' });
+
+  const { page, pageSize } = filters.data;
+  const notificationJoin = filters.data.notificationStatus && filters.data.notificationStatus !== 'not queued'
+    ? 'notifications!inner(id,status)'
+    : 'notifications(id,status)';
+  let q = supabase.from('orders').select(`*,customers(name),visitor_links(name),${notificationJoin}`, { count: 'exact' }).order('created_at', { ascending: false });
+  if (filters.data.customerId) q = q.eq('customer_id', filters.data.customerId);
+  if (filters.data.linkId) q = q.eq('link_id', filters.data.linkId);
+  if (filters.data.orderRef) q = q.ilike('order_ref', `%${escapeLikePattern(filters.data.orderRef)}%`);
+  if (filters.data.bundleId) q = q.eq('bundle_id', filters.data.bundleId);
+  if (filters.data.paymentStatus) q = q.eq('payment_status', filters.data.paymentStatus);
+  if (filters.data.notificationStatus === 'not queued') q = q.is('notifications.id', null);
+  else if (filters.data.notificationStatus) q = q.eq('notifications.status', filters.data.notificationStatus);
+  if (filters.data.from) q = q.gte('created_at', `${filters.data.from}T00:00:00.000Z`);
+  if (filters.data.to) {
+    const exclusiveEnd = new Date(`${filters.data.to}T00:00:00.000Z`);
+    exclusiveEnd.setUTCDate(exclusiveEnd.getUTCDate() + 1);
+    q = q.lt('created_at', exclusiveEnd.toISOString());
+  }
+  const { from, to } = orderRange(page, pageSize);
+  const { data, error, count } = await q.range(from, to);
+  if (error) throw error;
+  res.json({
+    orders: data || [],
+    pagination: { page, pageSize, total: count || 0, totalPages: Math.ceil((count || 0) / pageSize) }
+  });
 }));
 app.get('/api/admin/notifications', ...adminRoute, asyncRoute(async (_req, res) => {
   const { data, error } = await supabase.from('notifications').select('*,orders(order_ref),customers(name),visitor_links(name),delivery_attempts:notification_attempts(id,attempt_number,status,error,attempted_at)').order('created_at', { ascending: false }).limit(300);
