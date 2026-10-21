@@ -147,6 +147,14 @@ test('production frontend requires VITE_API_URL and has no mock bundle fallback'
   assert.doesNotMatch(frontendSource, /DEFAULT_BUNDLES/);
 });
 
+test('EcoCash popup submit is handled without collecting a wallet PIN or OTP', () => {
+  assert.match(frontendSource, /function submitPayment\(event\)\s*\{\s*event\.preventDefault\(\);\s*setPaymentError\("Payment verification is not connected yet\. No payment has been made\."\);/);
+  assert.match(frontendSource, /onClick=\{submitPayment\}/);
+  assert.match(frontendSource, /id="payment-phone"[\s\S]*?value=\{phone\}/);
+  assert.doesNotMatch(frontendSource, /verificationCode|verification-code|Enter 4 digits/);
+  assert.match(frontendSource, /Do not enter an EcoCash PIN or one-time code here/);
+});
+
 test('frontend link editing sends the independently edited notification preferences', () => {
   assert.match(frontendSource, /notificationPreferences:\s*\{\s*newOrder:\s*link\.notification_preferences\?\.newOrder\s*!==\s*false,\s*phone:\s*includePhone,\s*amount:\s*includeAmount/s);
   assert.match(frontendSource, /\{!loading && !error && !filteredCustomers\.length/);

@@ -1687,7 +1687,7 @@ function VisitorPage() {
   const [bundleId, setBundleId] = useState("");
   const [phone, setPhone] = useState("");
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
+  const [paymentError, setPaymentError] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const submissionKey = useRef(null);
@@ -1721,6 +1721,10 @@ function VisitorPage() {
     } finally {
       setBusy(false);
     }
+  }
+  function submitPayment(event) {
+    event.preventDefault();
+    setPaymentError("Payment verification is not connected yet. No payment has been made.");
   }
   if (loading)
     return <div className="visitor-loading">Loading bundle options…</div>;
@@ -1814,7 +1818,10 @@ function VisitorPage() {
   type="button"
   className="visitor-submit"
   disabled={!bundle}
-  onClick={() => setShowPaymentPopup(true)}
+  onClick={() => {
+    setPaymentError("");
+    setShowPaymentPopup(true);
+  }}
 >
   Continue to pay using EcoCash
 </button>
@@ -1825,7 +1832,10 @@ function VisitorPage() {
       <button
         type="button"
         className="payment-popup-close"
-        onClick={() => setShowPaymentPopup(false)}
+        onClick={() => {
+          setShowPaymentPopup(false);
+          setPaymentError("");
+        }}
       >
         ×
       </button>
@@ -1842,36 +1852,16 @@ function VisitorPage() {
         onChange={(e) => setPhone(e.target.value)}
         placeholder="7xxxxxxxx"
       />
-
-      <label htmlFor="verification-code">
-        4-digit verification code
-      </label>
-      <input
-        id="verification-code"
-        type="text"
-        inputMode="numeric"
-        maxLength={4}
-        value={verificationCode}
-        onChange={(e) =>
-          setVerificationCode(
-            e.target.value.replace(/\D/g, "").slice(0, 4)
-          )
-        }
-        placeholder="Enter 4 digits"
-      />
+      <p className="small muted">
+        Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
+      </p>
+      {paymentError && <p className="error" role="alert">{paymentError}</p>}
 
       <button
         type="button"
         className="visitor-submit"
-        disabled={
-          !phone.trim() ||
-          !/^\d{4}$/.test(verificationCode)
-        }
-        onClick={() =>
-          setError(
-            "Connect your authorized payment verification provider to continue."
-          )
-        }
+        disabled={!phone.trim()}
+        onClick={submitPayment}
       >
         Submit
       </button>
