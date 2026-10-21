@@ -37,6 +37,7 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.match(migration003, /notify pgrst, 'reload schema'/i);
   assert.equal(migration002.trimEnd().endsWith(';'), true);
   assert.equal(migration003.trimEnd().endsWith(';'), true);
+  assert.equal(migration004.trimEnd().endsWith(';'), true);
   assert.match(migration004, /create or replace function public\.notification_schema_status\(\)/i);
   assert.match(migration004, /grant select, insert, update on table[\s\S]*to service_role/i);
   assert.match(migration004, /grant execute on function public\.claim_notifications\(integer\) to service_role/i);
@@ -49,6 +50,23 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.doesNotMatch(migration004, /\b(update|delete|truncate)\s+(public\.)?(customers|visitor_links|orders|notifications|bundle_catalog)\b/i);
   for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
     assert.ok(migration004.includes(`'${objectName}'`), `readiness migration omits ${objectName}`);
+  }
+});
+
+test('migration 004 contains no reported token-joining syntax defects', () => {
+  const malformedPatterns = [
+    /\)else\s+false/i,
+    /\bfalseend\b/i,
+    /\bis\s+not\s+nullthen\b/i,
+    /\)'\)is\s+not\s+null/i,
+    /\)'\)\s+is\s+notnull/i,
+    /'public'and/i,
+    /'public'\s+andindexname/i,
+    /\bandpg_catalog\b/i,
+    /\belsefalse\b/i
+  ];
+  for (const pattern of malformedPatterns) {
+    assert.doesNotMatch(migration004, pattern);
   }
 });
 

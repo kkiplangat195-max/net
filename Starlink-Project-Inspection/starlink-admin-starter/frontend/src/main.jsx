@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import "./style.css";
 import {
   BrowserRouter,
   Link,
@@ -1685,6 +1686,8 @@ function VisitorPage() {
   const [error, setError] = useState("");
   const [bundleId, setBundleId] = useState("");
   const [phone, setPhone] = useState("");
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const submissionKey = useRef(null);
@@ -1755,7 +1758,7 @@ function VisitorPage() {
               <Check size={26} />
             </div>
             <h2>Thank You for Your Purchase!</h2>
-            <p>Thank you for buying Starlink bundles. Your order has been submitted successfully.</p>
+            <p>Thank you for buying Starlink bundles.</p>
             <dl className="order-summary">
               <div><dt>Bundle</dt><dd>{result.order.bundle_name || bundle?.name}</dd></div>
               <div><dt>Validity</dt><dd>{bundle?.validity || "—"}</dd></div>
@@ -1771,9 +1774,9 @@ function VisitorPage() {
             <p>
               {result.order.notification_queued
                 ? "Your order details will be sent to our service team for processing."
-                : "Your order was saved. Telegram notifications are disabled for this link or customer."}
+                : "Your order was saved."}
             </p>
-            <p className="small muted">No automated EcoCash payment was initiated. Payment remains pending until verified by an authorized provider.</p>
+            <p className="small muted">No automated EcoCash payment was initiated.</p>
             <button
               type="button"
               className="visitor-submit order-done"
@@ -1790,66 +1793,93 @@ function VisitorPage() {
           </div>
         ) : (
           <form onSubmit={submit}>
-            <div className="visitor-bundles">
-              {link.bundles.map((b) => (
-                <button
-                  type="button"
-                  key={b.id}
-                  onClick={() => setBundleId(b.id)}
-                  className={`visitor-bundle ${bundleId === b.id ? "selected" : ""}`}
-                >
-                  <div className="visitor-bundle-top">
-                    <span className="data-icon">
-                      <Package size={19} />
-                    </span>
-                    <span className="bundle-badge">{b.validity}</span>
-                  </div>
-                  <h3>{b.name}</h3>
-                  <p>{b.description}</p>
-                  <div className="visitor-price">{usd(b.price)}</div>
-                  {bundleId === b.id && (
-                    <span className="selected-check">
-                      <Check size={14} />
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="visitor-form">
-              <h2>Order details</h2>
-              <label>
-                Phone number
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                  placeholder="Enter your mobile number"
-                />
-              </label>
-              <div className="payment-brand">
-                <span className="ecocash-icon">E</span>
-                <span>
-                  <b>EcoCash</b>
-                  <small>
-                    Your number is used for the order. This form does not
-                    initiate an EcoCash payment request.
-                  </small>
-                </span>
-              </div>
-              {error && <p className="error">{error}</p>}
-              <button className="visitor-submit" disabled={!bundle || busy}>
-                {busy
-                  ? "Submitting…"
-                  : `Submit order & view payment instructions`}
-              </button>
-              <p className="visitor-legal">
-                Never enter your EcoCash wallet PIN or one-time authentication
-                code on this website. Any payment authentication must happen
-                only in the official EcoCash channel.
-              </p>
-            </div>
-          </form>
+            
+<div className="visitor-bundles">
+  {link.bundles.map((b) => (
+    <button
+      type="button"
+      key={b.id}
+      onClick={() => setBundleId(b.id)}
+      className={`visitor-bundle ${
+        bundleId === b.id ? "selected" : ""
+      }`}
+    >
+      <h3>{b.name}</h3>
+      <p>{b.description}</p>
+      <div className="visitor-price">{usd(b.price)}</div>
+    </button>
+  ))}
+</div>
+<button
+  type="button"
+  className="visitor-submit"
+  disabled={!bundle}
+  onClick={() => setShowPaymentPopup(true)}
+>
+  Continue to pay using EcoCash
+</button>
+
+{showPaymentPopup && (
+  <div className="payment-popup-overlay">
+    <div className="payment-popup">
+      <button
+        type="button"
+        className="payment-popup-close"
+        onClick={() => setShowPaymentPopup(false)}
+      >
+        ×
+      </button>
+
+      <h2>EcoCash Payment</h2>
+      <p>Plan: {bundle?.name}</p>
+      <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
+
+      <label htmlFor="payment-phone">Phone number</label>
+      <input
+        id="payment-phone"
+        type="tel"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="7xxxxxxxx"
+      />
+
+      <label htmlFor="verification-code">
+        4-digit verification code
+      </label>
+      <input
+        id="verification-code"
+        type="text"
+        inputMode="numeric"
+        maxLength={4}
+        value={verificationCode}
+        onChange={(e) =>
+          setVerificationCode(
+            e.target.value.replace(/\D/g, "").slice(0, 4)
+          )
+        }
+        placeholder="Enter 4 digits"
+      />
+
+      <button
+        type="button"
+        className="visitor-submit"
+        disabled={
+          !phone.trim() ||
+          !/^\d{4}$/.test(verificationCode)
+        }
+        onClick={() =>
+          setError(
+            "Connect your authorized payment verification provider to continue."
+          )
+        }
+      >
+        Submit
+      </button>
+    </div>
+  </div>
+)}
+</form>
+
         )}
       </main>
       <footer className="visitor-footer">
