@@ -42,5 +42,8 @@ export function safeQueueErrorDetails(error) {
     .replace(/\b(pin|otp)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
     .replace(/[\r\n\t]+/g, " ")
     .slice(0, 240);
-  return { code, message };
+  const missingObjects = Array.isArray(error?.missingObjects)
+    ? error.missingObjects.filter((name) => typeof name === 'string' && /^[a-z][a-z0-9_]{0,100}$/.test(name)).slice(0, 100)
+    : undefined;
+  return missingObjects ? { code, message, missingObjects } : { code, message };
 }

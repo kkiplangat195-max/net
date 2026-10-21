@@ -180,6 +180,13 @@ test('queue diagnostics throttle repeats and redact credentials and PIN-like val
   assert.deepEqual(safeQueueErrorDetails({ code: 'PGRST202', message: 'Missing bot123456:secret Bearer abc PIN:1234' }), {
     code: 'PGRST202', message: 'Missing [redacted bot token] Bearer [redacted] PIN=[redacted]'
   });
+  const failedChecks = ['customers_service_role_read', 'visitor_links_customer_fk'];
+  assert.deepEqual(safeQueueErrorDetails({ code: 'schema_not_ready', message: '2 required checks failed.', missingObjects: failedChecks }), {
+    code: 'schema_not_ready', message: '2 required checks failed.', missingObjects: failedChecks
+  });
+  assert.deepEqual(safeQueueErrorDetails({ code: 'schema_not_ready', message: 'not ready', missingObjects: ['bad name', 42] }), {
+    code: 'schema_not_ready', message: 'not ready', missingObjects: []
+  });
   assert.equal(queueRetryDelayMs(1), 5_000);
   assert.equal(queueRetryDelayMs(2), 10_000);
   assert.equal(queueRetryDelayMs(20), 300_000);

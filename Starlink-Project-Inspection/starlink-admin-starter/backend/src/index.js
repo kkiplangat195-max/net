@@ -360,10 +360,15 @@ async function processNotifications() {
       () => supabase.rpc('claim_notifications', { p_limit: 10 })
     );
     if (!queue.claimed) {
-      const message = queue.readiness.missingObjects?.length
-        ? `Schema not ready; missing: ${queue.readiness.missingObjects.join(', ')}`
+      const missingObjects = queue.readiness.missingObjects || [];
+      const message = missingObjects.length
+        ? `Schema not ready; ${missingObjects.length} required checks failed.`
         : 'Schema readiness check is unavailable.';
-      pauseQueue('Notification queue paused:', { code: queue.readiness.schemaCheckError || 'schema_not_ready', message });
+      pauseQueue('Notification queue paused:', {
+        code: queue.readiness.schemaCheckError || 'schema_not_ready',
+        message,
+        missingObjects
+      });
       return;
     }
     const { data: jobs, error } = queue.result;
