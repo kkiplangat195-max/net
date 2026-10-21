@@ -14,6 +14,7 @@ const migration001 = readFileSync(resolve(directory, '../supabase/migrations/001
 const migration002 = readFileSync(resolve(directory, '../supabase/migrations/002_notification_attempt_history.sql'), 'utf8');
 const migration003 = readFileSync(resolve(directory, '../supabase/migrations/003_schema_contract.sql'), 'utf8');
 const migration004 = readFileSync(resolve(directory, '../supabase/migrations/004_schema_readiness_and_api_grants.sql'), 'utf8');
+const verificationSql = readFileSync(resolve(directory, '../supabase/verify_schema.sql'), 'utf8');
 const apiSource = readFileSync(resolve(directory, '../src/index.js'), 'utf8');
 const healthSource = readFileSync(resolve(directory, '../src/database-health.js'), 'utf8');
 
@@ -33,6 +34,8 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.match(migration002, /create or replace function public\.complete_notification_attempt\(/i);
   assert.match(migration003, /notification_schema_status\(\)/i);
   assert.match(migration003, /notify pgrst, 'reload schema'/i);
+  assert.equal(migration002.trimEnd().endsWith(';'), true);
+  assert.equal(migration003.trimEnd().endsWith(';'), true);
   assert.match(migration004, /create or replace function public\.notification_schema_status\(\)/i);
   assert.match(migration004, /grant select, insert, update on table[\s\S]*to service_role/i);
   assert.match(migration004, /grant execute on function public\.claim_notifications\(integer\) to service_role/i);
@@ -43,6 +46,23 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
     assert.ok(migration004.includes(`'${objectName}'`), `readiness migration omits ${objectName}`);
   }
+});
+
+test('read-only verification SQL lists every required public table and function', () => {
+  for (const objectName of [
+    'public.customers',
+    'public.visitor_links',
+    'public.orders',
+    'public.notifications',
+    'public.notification_attempts',
+    'public.bundle_catalog',
+    'public.claim_notifications(integer)',
+    'public.complete_notification_attempt(uuid,integer,boolean,text,timestamptz)',
+    'public.notification_schema_status()'
+  ]) {
+    assert.ok(verificationSql.includes(objectName), `verification SQL omits ${objectName}`);
+  }
+  assert.doesNotMatch(verificationSql, /\b(insert|update|delete|truncate|drop)\b/i);
 });
 
 test('customer and link schemas retain API columns, foreign keys, indexes, and RLS', () => {

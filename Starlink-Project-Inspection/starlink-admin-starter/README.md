@@ -32,7 +32,7 @@ frontend/
 ## 1. Create Supabase database
 
 1. Create a Supabase project.
-2. There is no migration runner in this repository or Render Blueprint. In Supabase SQL Editor, first inspect the current schema and migration history, back up the database, and apply only missing migrations in this order: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`, `004_schema_readiness_and_api_grants.sql`.
+2. There is no migration runner in this repository or Render Blueprint. In Supabase SQL Editor, first inspect the current schema and migration history and take a backup. Apply only missing files, one file at a time, in this order: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`, `004_schema_readiness_and_api_grants.sql`. Wait for a successful result after each file; on any SQL error, stop and inspect the resulting schema before retrying or continuing.
 3. In Project Settings → API, copy the project URL and the **service-role key**. The service-role key is server-only and must never be added to Vercel or any `VITE_` variable.
 4. The migrations create customers, visitor links, orders, notifications, a bundle catalog, notification attempt history, RLS, and RPC functions for idempotent order creation, notification claiming, guarded attempt completion, and schema readiness. Migration 003 and 004 request a PostgREST schema reload. Migration 002 sets existing customer/link `phone` notification preferences to false; it is not safe to rerun after customers have changed those preferences. Inspect migration state and preference data first; do not rerun an applied 002.
 
@@ -50,12 +50,14 @@ select to_regclass('public.customers') as customers,
        to_regclass('public.bundle_catalog') as bundle_catalog,
        to_regprocedure('public.claim_notifications(integer)') as claim_notifications,
        to_regprocedure('public.complete_notification_attempt(uuid,integer,boolean,text,timestamptz)') as complete_notification_attempt,
-      to_regprocedure('public.notification_schema_status()') as notification_schema_status;
+        to_regprocedure('public.notification_schema_status()') as notification_schema_status;
 select schemaname, tablename from pg_catalog.pg_tables
 where schemaname = 'public' order by tablename;
 ```
 
-    No migration-history row alone proves whether an older migration ran. Compare catalog objects and definitions before deciding which files are missing. If `notification_schema_status()` is not yet installed, the `to_regprocedure` result will be `NULL`; do not run it in the preflight query. After applying migration 003 or 004, run `select public.notification_schema_status();` and verify `https://net-a5jw.onrender.com/health` returns `databaseReady: true`.
+  No migration-history row alone proves whether an older migration ran. Compare catalog objects and definitions before deciding which files are missing. If `notification_schema_status()` is not yet installed, the `to_regprocedure` result will be `NULL`; do not invoke it in the preflight query. After applying migration 003 or 004, run `select public.notification_schema_status();` and verify `https://net-a5jw.onrender.com/health` returns `databaseReady: true`.
+
+  After all migrations, open `backend/supabase/verify_schema.sql` in Supabase SQL Editor and run it. It reports each required table/function as present or missing and returns the detailed readiness JSON. It is read-only.
 
 ## 2. Configure and run the backend locally
 

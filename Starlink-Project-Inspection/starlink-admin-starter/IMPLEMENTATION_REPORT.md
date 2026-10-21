@@ -32,6 +32,7 @@ These points are code inspection findings. Database-backed behavior was not exer
 - Queued Telegram messages now include bundle validity and continue to use the saved link recipient, master switch, and independent phone/amount permissions. Duplicate responses expose the same notification state as new submissions.
 - Added focused backend tests in `backend/test/domain.test.js`.
 - Added static migration/API contract and readiness/queue diagnostic tests in `backend/test/schema-contract.test.js`.
+- Added read-only `backend/supabase/verify_schema.sql` to report the required table/function presence and detailed readiness result after migration 003/004.
 - Added backend/frontend `package-lock.json` files after inspecting manifests and installing dependencies.
 - Updated README migration instructions, `IMPLEMENTATION_AUDIT.md`, and this report.
 
@@ -50,15 +51,16 @@ EcoCash: no authorized provider contract, merchant credentials, initiation adapt
 ## Tests Executed
 
 - ZIP `unzip -t`: passed; all non-self-referential checksums from the archive manifest matched the original ZIP entries.
-- Backend `npm test`: 17 tests passed, covering migration requirements, readiness failure, queue gating/backoff, API status classification, CORS origin matching, and redacted/throttled diagnostics.
-- Backend `npm run check`: passed (`node --check src/index.js`).
+- Backend `npm test`: 18 tests passed, including read-only verification-SQL coverage, migration terminators, schema readiness, queue gating/backoff, API error classification, and CORS.
+- Backend `node --check src/index.js`: passed.
 - Frontend `npm run build`: TypeScript build and optimized Vite production build passed.
+- `git diff --check`: passed.
 - `npm install` in backend and frontend: completed; npm reported zero vulnerabilities. Frontend install warned that the `esbuild` install script was not approved; the production build still succeeded.
 - Conflict-marker scan: none found.
 
 No live customer create/list test, SQL migration execution, RPC claim against Supabase, Telegram `getMe`/destination send, EcoCash initiation/callback, or production deployment test was performed. During this task, public requests to the configured Render health and preflight endpoints timed out after 15 seconds, so the current deployment state remains unknown. The migration/API tests are static contract tests, not database integration tests.
 
-To inspect and apply migrations safely in Supabase: first take a database backup. In SQL Editor, run the read-only preflight query in `README.md`. Compare catalog objects and definitions with migration history; do not treat an empty history query as proof that no migrations ran and do not rerun 001 on a populated database solely because PostgREST reports a cache error. Apply only missing migrations in order: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`, `004_schema_readiness_and_api_grants.sql`. Migration 002 changes existing phone notification preferences to false and must not be rerun after settings have changed. Migration 004 is row-preserving and reasserts grants/RLS/indexes/FKs/functions. Verify `select public.notification_schema_status();` and then the Render health endpoint after deployment.
+To inspect and apply migrations safely in Supabase: first take a database backup. In SQL Editor, run the read-only preflight query in `README.md`. Compare catalog objects and definitions with migration history; do not treat an empty history query as proof that no migrations ran and do not rerun 001 on a populated database solely because PostgREST reports a cache error. Apply only missing migrations, one SQL file at a time, in order: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`, `004_schema_readiness_and_api_grants.sql`. Stop immediately on any SQL error and inspect partial schema state before retrying. Migration 002 changes existing phone notification preferences to false and must not be rerun after settings have changed. Migration 004 is row-preserving and reasserts grants/RLS/indexes/FKs/functions. Run `backend/supabase/verify_schema.sql` after 003/004 and then check Render health. No migration was applied and no production deployment was performed in this task.
 
 ## Known Issues and Incomplete Work
 
