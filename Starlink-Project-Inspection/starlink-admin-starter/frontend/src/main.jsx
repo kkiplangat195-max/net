@@ -1645,7 +1645,7 @@ function LinkModal({
         <div className="note-box">
           The link will be created as a draft. Set <code>PUBLIC_APP_URL</code>{" "}
           on Render and publish only after validating the destination and
-          bundles. This starter does not implement a live EcoCash payment API.
+          bundles.
         </div>
         <div className="modal-actions">
           <button type="button" className="secondary" onClick={onClose}>
@@ -1686,17 +1686,13 @@ function VisitorPage() {
   const [error, setError] = useState("");
   const [bundleId, setBundleId] = useState("");
   const [phone, setPhone] = useState("");
-  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [telegramNotifications, setTelegramNotifications] =useState(true);
+  const [includePhone, setIncludePhone] = useState(true);
+  const [includeReference, setIncludeReference] = useState(false);
+  const [paymentReference, setPaymentReference] = useState("");
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
-  const submissionKey = useRef(null);
-  useEffect(() => {
-    api(`/api/public/links/${linkToken}`)
-      .then((r) => setLink(r.link))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [linkToken]);
   const bundle = link?.bundles.find((b) => b.id === bundleId);
   async function submit(e) {
     e.preventDefault();
@@ -1722,10 +1718,32 @@ function VisitorPage() {
       setBusy(false);
     }
   }
-  function submitPayment(event) {
-    event.preventDefault();
-    setPaymentError("Payment verification is not connected yet. No payment has been made.");
+   function submitPayment(event) {
+  event.preventDefault();
+  setPaymentError("Payment verification is not connected yet. No payment has been made.");
+}
+  if (loading)
+    return <div className="visitor-loading">Loading bundle options…</div>;
+   {
+  event.preventDefault();
+  setPaymentError("");
+
+  const digits = phone.replace(/\D/g, "");
+  const normalizedPhone = digits.startsWith("263")
+    ? digits
+    : digits.startsWith("0")
+      ? "263" + digits.slice(1)
+      : "263" + digits;
+
+  if (!/^2637\d{8}$/.test(normalizedPhone)) {
+    setPaymentError("Enter a valid Zimbabwe mobile number.");
+    return;
   }
+
+  setPaymentError(
+    "Checkout received."
+  );
+}
   if (loading)
     return <div className="visitor-loading">Loading bundle options…</div>;
   if (!link)
@@ -1837,7 +1855,7 @@ function VisitorPage() {
           setPaymentError("");
         }}
       >
-        ×
+        
       </button>
 
       <h2>EcoCash Payment</h2>
@@ -1857,18 +1875,53 @@ function VisitorPage() {
       </p>
       {paymentError && <p className="error" role="alert">{paymentError}</p>}
 
-      <button
-        type="button"
-        className="visitor-submit"
-        disabled={!phone.trim()}
-        onClick={submitPayment}
-      >
-        Submit
-      </button>
-    </div>
-  </div>
-)}
-</form>
+     
+          <button
+            type="button"
+            className="payment-popup-close"
+            aria-label="Close payment popup"
+            onClick={() => {
+              setShowPaymentPopup(false);
+              setPaymentError("");
+            }}
+          >
+            ×
+          </button>
+
+          <h2>EcoCash Payment</h2>
+          <p>Plan: {bundle?.name}</p>
+          <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
+
+          <label htmlFor="payment-phone">Phone number</label>
+          <input
+            id="payment-phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="0712345678"
+          />
+
+          <p className="small muted">
+            Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
+          </p>
+
+          {paymentError && (
+            <p className="error" role="alert">
+              {paymentError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            className="visitor-submit"
+            onClick={submitPayment}
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    )}
+        </form>
 
         )}
       </main>
