@@ -32,11 +32,11 @@ frontend/
 ## 1. Create Supabase database
 
 1. Create a Supabase project.
-2. Open **SQL Editor** and run `backend/supabase/migrations/001_initial.sql`, followed by `backend/supabase/migrations/002_notification_attempt_history.sql`.
+2. For a new database, run `001_initial.sql`, then `002_notification_attempt_history.sql`, then `003_schema_contract.sql` from `backend/supabase/migrations/` in the Supabase SQL Editor. For an existing project, inspect its objects and migration history first and run only missing migrations; take a backup before applying SQL.
 3. In Project Settings → API, copy the project URL and the **service-role key**. The service-role key is server-only and must never be added to Vercel or any `VITE_` variable.
-4. The migrations create customers, visitor links, orders, notifications, a bundle catalog, notification attempt history, RLS, and RPC functions for idempotent order creation, notification claiming, and guarded attempt completion. Migration 002 opts phone-number sharing out for existing notification preferences; explicitly enable it only for recipients that need it.
+4. The migrations create customers, visitor links, orders, notifications, a bundle catalog, notification attempt history, RLS, and RPC functions for idempotent order creation, notification claiming, guarded attempt completion, and schema readiness. Migration 003 notifies PostgREST to reload its schema cache. Migration 002 opts phone-number sharing out for existing notification preferences; review that privacy change before production.
 
-The backend uses the service role and enforces admin authentication at the API layer. Do not add a permissive RLS policy for anonymous access.
+The backend uses the service role and enforces admin authentication at the API layer. Do not add a permissive RLS policy for anonymous access. `/health` now returns HTTP 503 until all expected tables/functions are visible via the schema-status RPC; after SQL Editor execution, wait briefly for PostgREST's reload and verify the response is HTTP 200 with `databaseReady: true`.
 
 ## 2. Configure and run the backend locally
 

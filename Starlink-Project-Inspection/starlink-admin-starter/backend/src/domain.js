@@ -73,3 +73,20 @@ export function permittedNotificationPreferences(linkPreferences = {}, customerP
     amount: linkPreferences.amount !== false && customerPreferences.amount !== false
   };
 }
+
+export function formatOrderNotification(job, preferences = {}, notificationsEnabled = true) {
+  if (!notificationsEnabled || preferences.newOrder === false) return null;
+  const lines = [
+    'NEW DATA BUNDLE ORDER',
+    `Order Reference: ${job.order_ref}`,
+    `Bundle: ${job.bundle_name}`
+  ];
+  if (typeof preferences.bundleValidity === 'string' && preferences.bundleValidity.trim()) {
+    lines.push(`Validity: ${preferences.bundleValidity.trim()}`);
+  }
+  if (preferences.amount !== false) lines.push(`Amount: USD ${Number(job.amount).toFixed(2)}`);
+  lines.push(`Payment Status: ${job.payment_status}`);
+  if (preferences.phone === true) lines.push(`Phone: ${job.phone}`);
+  lines.push(`Submitted: ${new Date(job.order_created_at).toISOString()}`);
+  return lines.join('\n');
+}

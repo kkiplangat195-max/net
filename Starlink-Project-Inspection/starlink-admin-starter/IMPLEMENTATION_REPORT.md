@@ -21,16 +21,23 @@ These points are code inspection findings. Database-backed behavior was not exer
 - Link creation and edits now use server catalog prices and metadata. Published links are revalidated on edit; production publication requires an HTTPS URL.
 - Increased order-reference entropy and hardened duplicate-key responses to only return an order matching the same link, bundle, and phone. The visitor reuses an idempotency key for unchanged submissions while the page remains open.
 - Added `backend/supabase/migrations/002_notification_attempt_history.sql`: processing leases and stale-job recovery, persisted attempt results, guarded completion RPC, and opt-out defaults for phone fields in existing notification preference rows.
+- Added `backend/supabase/migrations/003_schema_contract.sql`: a service-role-only, read-only RPC that reports required schema objects and issues `NOTIFY pgrst, 'reload schema'` after installation.
+- Added `backend/src/database-health.js` and `backend/src/queue-diagnostics.js`. `/health` now returns 503 until the expected schema contract is visible, and repeated queue errors are rate-limited and redacted.
 - Customer notification settings now cap link permissions; customer disablement prevents new order notification enqueueing. Phone and amount are configurable; phone is opt-in.
 - Added an authenticated Telegram bot `getMe` check, made customer tests use only the saved destination, and fixed route order so the link-specific test endpoint is reachable.
 - Manual retry is limited to failed records. The Admin displays attempt history, previews saved link configuration, and filters the latest 200 orders by customer/link/reference/bundle/payment/notification/date.
+- The visitor confirmation page now displays the requested success heading/message, accepted order's bundle and validity, USD price, reference, actual payment status, queued-notification state, and a Done action returning to the plans on the same link. Confirmation follows the database RPC response and does not wait for Telegram delivery.
+- Queued Telegram messages now include bundle validity and continue to use the saved link recipient, master switch, and independent phone/amount permissions. Duplicate responses expose the same notification state as new submissions.
 - Added focused backend tests in `backend/test/domain.test.js`.
+- Added static migration/API contract and readiness/queue diagnostic tests in `backend/test/schema-contract.test.js`.
 - Added backend/frontend `package-lock.json` files after inspecting manifests and installing dependencies.
 - Updated README migration instructions, `IMPLEMENTATION_AUDIT.md`, and this report.
 
 ## Database Migrations
 
-The extracted project already contains `backend/supabase/migrations/001_initial.sql`. Apply `002_notification_attempt_history.sql` after 001. Migration 002 modifies existing preference rows to set `phone` to false and changes future defaults; review and back up the production database before applying. It was not executed here because `psql`, the Supabase CLI, and database credentials are unavailable.
+Migration order for an empty database: `001_initial.sql`, `002_notification_attempt_history.sql`, then `003_schema_contract.sql`. For the configured existing project, inspect Supabase migration history and current objects first, take a backup, and apply only missing migrations in that order. Migration 002 changes existing preference rows to set `phone` to false and changes future defaults; review this privacy behavior before applying. Migration 003 reloads PostgREST's schema cache and enables the new readiness response. None of these migrations was applied here: no Supabase access, credentials, `psql`, or Supabase CLI were available.
+
+In Supabase SQL Editor, run each missing migration file in order. Then check `https://net-a5jw.onrender.com/health`; success requires HTTP 200 and `databaseReady: true`. A 503 with `schemaCheckError: "PGRST202"` means the schema-status RPC is not visible yet or migration 003 is missing; `missingObjects` names installed objects that remain absent. After migration 003, PostgREST receives a cache reload notification; if the RPC remains unavailable, use Supabase's API settings to reload the schema cache and check the API logs.
 
 ## Configuration Needed
 
@@ -41,13 +48,15 @@ EcoCash: no authorized provider contract, merchant credentials, initiation adapt
 ## Tests Executed
 
 - ZIP `unzip -t`: passed; all non-self-referential checksums from the archive manifest matched the original ZIP entries.
-- Backend `npm test`: 8 tests passed.
+- Backend `npm test`: 14 tests passed, including static checks for migration objects, the `claim_notifications(integer)` return contract, locking and grants, RPC caller argument/row-array handling, schema-readiness behavior, and redacted/throttled diagnostics.
 - Backend `npm run check`: passed (`node --check src/index.js`).
 - Frontend `npm run build`: TypeScript build and optimized Vite production build passed.
 - `npm install` in backend and frontend: completed; npm reported zero vulnerabilities. Frontend install warned that the `esbuild` install script was not approved; the production build still succeeded.
 - Conflict-marker scan: none found.
 
-No live Admin/database route tests, SQL migration execution, Telegram `getMe`/destination send, EcoCash initiation/callback, or production deployment test was performed. These are not represented as passing.
+No live customer create/list test, SQL migration execution, RPC claim against Supabase, Telegram `getMe`/destination send, EcoCash initiation/callback, or production deployment test was performed. The migration/API tests are static contract tests, not database integration tests.
+
+To inspect and apply migrations safely in Supabase: first take a database backup. In SQL Editor, run a read-only check such as `select to_regclass('public.customers'), to_regclass('public.visitor_links'), to_regprocedure('public.claim_notifications(integer)'), to_regprocedure('public.complete_notification_attempt(uuid,integer,boolean,text,timestamptz)');`. Compare this with migration history and inspect existing definitions; do not rerun migration 001 on a populated project solely because PostgREST reports a cache error. Apply only missing migrations in this order: `001_initial.sql`, `002_notification_attempt_history.sql`, `003_schema_contract.sql`. Migration 002 changes existing phone notification preferences to false. Migration 003 sends the PostgREST reload notification. Verify `https://net-a5jw.onrender.com/health` returns HTTP 200 and `databaseReady: true`; if the schema RPC is not found after 003, reload the schema cache in Supabase API settings and retry.
 
 ## Known Issues and Incomplete Work
 
@@ -56,12 +65,14 @@ No live Admin/database route tests, SQL migration execution, Telegram `getMe`/de
 - Orders are filtered client-side among the newest 200 API results; older orders need server-side pagination/search.
 - The visitor form configuration remains phone-only; link preview is a saved configuration preview, not an interactive visitor session.
 - The source is a starter snapshot, not the confirmed original GitHub project. Original visitor assets, existing production configuration, and authorized EcoCash flow are absent.
-- The Admin JWT remains in `localStorage`; consider an HttpOnly-cookie/BFF session before production. Health checks report environment presence, not database connectivity.
+- No separate order PIN exists in the source: there is no PIN field, generation, or validation in the visitor order flow. The only PIN context is the EcoCash wallet authentication credential, which existing project instructions prohibit collecting or forwarding. Therefore no PIN preference/UI/migration/Telegram payload was added. Do not enable PIN delivery until a non-authentication order code is identified and authorized.
+- The uploaded `EcoCash Login Screen with Submit Button.png` is a wallet login form that collects a phone number and four-digit authentication PIN. A credential-entry replica or Telegram forwarding of the entered PIN was not implemented. The existing checkout continues to prohibit PIN/OTP collection.
+- The Admin JWT remains in `localStorage`; consider an HttpOnly-cookie/BFF session before production. The schema-aware health check itself was not exercised against Supabase.
 - No automated migration runner, route integration suite, lint script, or concurrent queue test is included.
 
 ## Run and Deploy
 
-After applying/reviewing migrations and supplying backend environment settings, run two terminals:
+After reviewing and applying missing migrations in order, and supplying backend environment settings, run two terminals:
 
 ```bash
 cd backend && npm install && npm run dev
@@ -70,6 +81,8 @@ cd frontend && npm install && npm run dev
 
 For deployment, the existing configuration describes a Render Node web service rooted at `backend` and a Vercel frontend rooted at `frontend`; set `VITE_API_URL` to the actual Render API URL and set backend CORS/public URL values to the verified frontend domain. The reconstructed PostgreSQL/worker blueprint is not compatible with this Supabase backend and must not be deployed as-is. See `README.md` for the starter setup.
 
+For the URLs supplied with this task, configure Render `FRONTEND_URL=https://net-omega-black.vercel.app` and `PUBLIC_APP_URL=https://net-omega-black.vercel.app`. Configure Vercel `VITE_API_URL=https://net-a5jw.onrender.com`. These values are documented here only; no deployment settings were changed remotely.
+
 ## Production Readiness
 
-**Not verified and not production-ready.** Builds and unit tests pass, but the database migration and application routes were not tested against Supabase, Telegram credentials/destinations are absent, EcoCash is not integrated, and the original production website is not included. Back up and compare with the actual repository before integrating or deploying.
+**Not verified and not production-ready.** Builds and tests pass, but no migration was applied and schema readiness, customer routes, and queue RPCs were not tested against Supabase. Telegram credentials/destinations are absent, EcoCash is not integrated, no distinct order PIN exists in source, and the original production website is not included. Back up and compare with the actual repository before integrating or deploying.

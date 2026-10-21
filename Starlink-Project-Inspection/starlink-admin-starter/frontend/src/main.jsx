@@ -34,6 +34,7 @@ import {
   X,
 } from "lucide-react";
 import "./style.css";
+import "./order-confirmation.css";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(
   /\/$/,
@@ -1794,29 +1795,39 @@ function VisitorPage() {
             <div className="success-icon">
               <Check size={26} />
             </div>
-            <h2>Order received</h2>
-            <p>
-              Your order reference is{" "}
-              <b className="mono">{result.order.order_ref}</b>.
-            </p>
+            <h2>Thank You for Your Purchase!</h2>
+            <p>Thank you for buying Starlink bundles. Your order has been submitted successfully.</p>
+            <dl className="order-summary">
+              <div><dt>Bundle</dt><dd>{result.order.bundle_name || bundle?.name}</dd></div>
+              <div><dt>Validity</dt><dd>{bundle?.validity || "—"}</dd></div>
+              <div><dt>Price</dt><dd>${Number(result.order.amount ?? bundle?.price ?? 0).toFixed(2)} USD</dd></div>
+              <div><dt>Order reference</dt><dd className="mono">{result.order.order_ref}</dd></div>
+              <div><dt>Order status</dt><dd>Submitted successfully</dd></div>
+              <div><dt>Payment status</dt><dd>{result.order.payment_status || "pending"}</dd></div>
+            </dl>
             <div className="pending-box">
-              Payment status: <b>Pending</b>
-              <p>{result.paymentInstructions}</p>
+              Payment is not confirmed
+              <p>{result.paymentInstructions || link.paymentInstructions}</p>
             </div>
-            <div className="note-box">
-              <b>EcoCash payment has not been initiated automatically.</b>
-              <p>
-                This website does not have an authorized EcoCash payment API
-                configured. Do not enter your EcoCash PIN or one-time
-                authentication code on this website or share it with anyone.
-                Complete payment only through an official EcoCash prompt/app or
-                verified instructions.
-              </p>
-            </div>
-            <small>
-              Payment is not confirmed until independently verified by the
-              payment provider.
-            </small>
+            <p>
+              {result.order.notification_queued
+                ? "Your order details will be sent to our service team for processing."
+                : "Your order was saved. Telegram notifications are disabled for this link or customer."}
+            </p>
+            <p className="small muted">No automated EcoCash payment was initiated. Payment remains pending until verified by an authorized provider.</p>
+            <button
+              type="button"
+              className="visitor-submit order-done"
+              onClick={() => {
+                setResult(null);
+                setBundleId("");
+                setPhone("");
+                setError("");
+                submissionKey.current = null;
+              }}
+            >
+              Done
+            </button>
           </div>
         ) : (
           <form onSubmit={submit}>

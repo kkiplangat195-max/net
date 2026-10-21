@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertPublishableLink, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from '../src/domain.js';
+import { assertPublishableLink, formatOrderNotification, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from '../src/domain.js';
 
 const catalog = [
   { bundle_id: '15gb-7d', name: '15GB Data', validity: '7-Day Plan', price: '0.99', description: '15GB for 7 days', enabled: true, promotional_label: '' },
@@ -52,4 +52,23 @@ test('customer preferences cap per-link notification fields and phone sharing is
     { newOrder: true, phone: false, amount: true }
   ), { newOrder: true, phone: false, amount: false });
   assert.equal(permittedNotificationPreferences({ newOrder: true }, { newOrder: false }).newOrder, false);
+});
+
+test('order notification fields remain independent and never contain an authentication PIN', () => {
+  const job = {
+    order_ref: 'ORD-123', bundle_name: '15GB Data', amount: 0.99,
+    payment_status: 'pending', phone: '+263771234567', order_created_at: '2026-10-21T00:00:00Z',
+    pin: '1234'
+  };
+  const minimal = formatOrderNotification(job, { phone: false, amount: false, bundleValidity: '7-Day Plan' });
+  assert.doesNotMatch(minimal, /Phone:|Amount:|\b1234\b/);
+  assert.match(minimal, /Validity: 7-Day Plan/);
+  const phoneOnly = formatOrderNotification(job, { phone: true, amount: false });
+  assert.match(phoneOnly, /Phone: \+263771234567/);
+  assert.doesNotMatch(phoneOnly, /Amount:|\b1234\b/);
+  const amountOnly = formatOrderNotification(job, { phone: false, amount: true });
+  assert.match(amountOnly, /Amount: USD 0\.99/);
+  assert.doesNotMatch(amountOnly, /Phone:|\b1234\b/);
+  assert.equal(formatOrderNotification(job, { newOrder: false }), null);
+  assert.equal(formatOrderNotification(job, {}, false), null);
 });

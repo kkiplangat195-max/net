@@ -8,7 +8,9 @@ import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { assertPublishableLink, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from './domain.js';
+import { assertPublishableLink, formatOrderNotification, normalizeLinkBundles, notificationOutcome, permittedNotificationPreferences } from './domain.js';
+import { inspectDatabaseSchema } from './database-health.js';
+import { queueErrorLogDue, safeQueueErrorDetails } from './queue-diagnostics.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'ADMIN_EMAIL', 'ADMIN_PASSWORD_HASH', 'JWT_SECRET'];
 const missing = required.filter((k) => !process.env[k]);
@@ -48,7 +50,11 @@ const bundleSchema = z.object({ id: z.string().min(1), name: z.string().min(1).m
 const customerSchema = z.object({ name: z.string().trim().min(1).max(120), notes: z.string().max(2000).optional().default(''), telegramChatId: z.string().trim().max(100).optional().default(''), notificationsEnabled: z.boolean().optional().default(false), notificationPreferences: notificationPreferencesSchema.optional().default({}) });
 const linkSchema = z.object({ customerId: z.string().uuid(), name: z.string().trim().min(1).max(120), bundles: z.array(bundleSchema).min(1), formConfig: z.record(z.string(), z.unknown()).optional().default({ phoneRequired: true }), paymentInstructions: z.string().max(2000).optional().default('Payment is pending. Follow only verified EcoCash instructions provided by the administrator. This website does not collect EcoCash PINs or one-time codes.'), telegramChatId: z.string().trim().max(100).optional().default(''), notificationsEnabled: z.boolean().optional().default(false), notificationPreferences: notificationPreferencesSchema.optional().default({}) });
 
-app.get('/health', (_req, res) => res.json({ ok: true, databaseConfigured: Boolean(supabase) }));
+app.get('/health', asyncRoute(async (_req, res) => {
+  const database = await inspectDatabaseSchema(supabase);
+  const ready = database.databaseReady;
+  res.status(ready ? 200 : 503).json({ ok: ready, ...database });
+}));
 app.post('/api/auth/login', dbReady, asyncRoute(async (req, res) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1).max(300) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Enter a valid email and password.' });
@@ -215,13 +221,13 @@ app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req,
     p_order_ref: orderRef, p_customer_id: link.customer_id, p_link_id: link.id, p_bundle_id: bundle.id, p_bundle_name: bundle.name,
     p_amount: money(bundle.price), p_currency: 'USD', p_phone: p.data.phone, p_idempotency_key: p.data.idempotencyKey,
     p_payment_status: 'pending', p_notification_enabled: notificationEnabled, p_chat_id: notificationEnabled ? link.telegram_chat_id : null,
-    p_config_version: link.config_version || 1, p_notification_preferences: notificationPreferences
+    p_config_version: link.config_version || 1, p_notification_preferences: { ...notificationPreferences, bundleValidity: bundle.validity }
   });
   if (error) {
     if (error.code === '23505') {
-      const { data: old } = await supabase.from('orders').select('order_ref,payment_status,amount,currency,link_id,bundle_id,phone').eq('idempotency_key', p.data.idempotencyKey).maybeSingle();
+      const { data: old } = await supabase.from('orders').select('order_ref,bundle_name,payment_status,amount,currency,link_id,bundle_id,phone,notifications(status)').eq('idempotency_key', p.data.idempotencyKey).maybeSingle();
       if (old?.link_id === link.id && old.bundle_id === bundle.id && old.phone === p.data.phone) {
-        return res.status(200).json({ order: old, duplicate: true });
+        return res.status(200).json({ order: { ...old, notification_queued: Boolean(old.notifications?.length) }, duplicate: true });
       }
       return res.status(409).json({ error: 'This submission key was already used. Refresh the page and submit again.' });
     }
@@ -262,18 +268,26 @@ app.use((err, _req, res, _next) => { console.error('API error:', err?.message ||
 
 // DB-backed queue worker. Run one Render worker instance for simple deployments.
 let workerBusy = false;
+let lastQueueErrorLogAt = null;
+function logQueueError(label, error) {
+  const now = Date.now();
+  if (!queueErrorLogDue(lastQueueErrorLogAt, now)) return;
+  lastQueueErrorLogAt = now;
+  console.error(label, safeQueueErrorDetails(error));
+}
 async function processNotifications() {
   if (!supabase || !process.env.TELEGRAM_BOT_TOKEN || workerBusy) return;
   workerBusy = true;
   try {
     const { data: jobs, error } = await supabase.rpc('claim_notifications', { p_limit: 10 });
-    if (error) { console.error('Notification queue claim failed:', error.message); return; }
+    if (error) { logQueueError('Notification queue claim failed:', error); return; }
     for (const job of jobs || []) {
       let status = 'failed'; let errorText = null;
       try {
         const prefs = job.message_fields || {};
-        const lines = ['NEW DATA BUNDLE ORDER', `Order Reference: ${job.order_ref}`, `Bundle: ${job.bundle_name}`, `Amount: USD ${Number(job.amount).toFixed(2)}`, `Payment Status: ${job.payment_status}`, `Phone: ${job.phone}`, `Submitted: ${new Date(job.order_created_at).toISOString()}`];
-        const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: job.intended_chat_id, text: lines.filter((line) => { if (line.startsWith('Phone:')) return prefs.phone !== false; if (line.startsWith('Amount:')) return prefs.amount !== false; return true; }).join('\n') }), signal: AbortSignal.timeout(10000) });
+        const text = formatOrderNotification(job, prefs);
+        if (!text) throw new Error('Order notification is disabled for this event.');
+        const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: job.intended_chat_id, text }), signal: AbortSignal.timeout(10000) });
         const result = await response.json().catch(() => ({})); if (!response.ok || !result.ok) throw new Error(result.description || `Telegram HTTP ${response.status}`); status = 'sent';
       } catch (err) { errorText = String(err?.message || 'Delivery failed').slice(0, 500); }
       const attempts = Number(job.attempts || 0);
@@ -285,9 +299,9 @@ async function processNotifications() {
         p_error: errorText,
         p_next_attempt_at: outcome.nextAttemptAt
       });
-      if (completionError) console.error('Notification result could not be persisted:', completionError.message);
+      if (completionError) logQueueError('Notification result could not be persisted:', completionError);
     }
-  } catch (err) { console.error('Notification worker error:', err?.message || 'unknown error'); }
+  } catch (err) { logQueueError('Notification worker error:', err); }
   finally { workerBusy = false; }
 }
 if (process.env.RUN_NOTIFICATION_WORKER !== 'false') setInterval(processNotifications, Math.max(3000, Number(process.env.NOTIFICATION_POLL_MS || 5000))).unref();
