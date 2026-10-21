@@ -82,5 +82,5 @@ export async function inspectDatabaseSchema(client) {
 
 function schemaCheckFailure(error) {
   const code = /^[A-Z0-9_-]{1,32}$/i.test(String(error?.code || '')) ? error.code : 'unknown';
-  return { databaseConfigured: true, databaseReady: false, missingObjects: [], schemaCheckError: code };
+  return { databaseConfigured: true, databaseReady: false, missingObjects: REQUIRED_SCHEMA_OBJECTS, schemaCheckError: code };
 }

@@ -42,6 +42,8 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.match(migration004, /grant select, insert, update on table[\s\S]*to service_role/i);
   assert.match(migration004, /grant execute on function public\.claim_notifications\(integer\) to service_role/i);
   assert.match(migration004, /client_rls_policies_restricted/i);
+  assert.equal((migration004.match(/pg_catalog\.jsonb_build_object\(/g) || []).length, 4);
+  assert.equal((migration004.match(/\) \|\| pg_catalog\.jsonb_build_object\(/g) || []).length, 3);
   assert.match(migration004, /notify pgrst, 'reload schema'/i);
   for (const malformedToken of [/\bisnot\b/i, /\bnullthen\b/i, /'public'and/i, /'public'\s+andindexname/i, /\belsefalse\b/i, /\bandpg_catalog\b/i]) {
     assert.doesNotMatch(migration004, malformedToken);
@@ -50,6 +52,14 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.doesNotMatch(migration004, /\b(update|delete|truncate)\s+(public\.)?(customers|visitor_links|orders|notifications|bundle_catalog)\b/i);
   for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
     assert.ok(migration004.includes(`'${objectName}'`), `readiness migration omits ${objectName}`);
+  }
+  const readinessFunction = migration004.match(/create or replace function public\.notification_schema_status\(\)[\s\S]*?as \$\$([\s\S]*?)\$\$;/i)?.[1] || '';
+  const sqlFlags = [...readinessFunction.matchAll(/^\s+'([a-z_]+)',/gm)].map((match) => match[1]);
+  assert.deepEqual([...sqlFlags].sort(), [...REQUIRED_SCHEMA_OBJECTS].sort());
+  assert.equal(new Set(sqlFlags).size, REQUIRED_SCHEMA_OBJECTS.length);
+  assert.doesNotMatch(readinessFunction, /^\s+'[a-z_]+',\s*true\s*[,)]/gim);
+  for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
+    assert.match(verificationSql, new RegExp(`\\('${objectName}'\\)`), `read-only verifier omits ${objectName}`);
   }
 });
 
@@ -106,6 +116,8 @@ test('read-only verification SQL lists every required public table and function'
   ]) {
     assert.ok(verificationSql.includes(objectName), `verification SQL omits ${objectName}`);
   }
+  assert.match(verificationSql, /jsonb_typeof\(schema_status\.flags -> required_flags\.flag\)/);
+  assert.match(verificationSql, /as passed/);
   assert.doesNotMatch(verificationSql, /\b(insert|update|delete|truncate|drop)\b/i);
 });
 
@@ -232,10 +244,30 @@ test('database readiness detects missing objects and unavailable schema RPC', as
   assert.equal(missing.databaseReady, false);
   assert.ok(missing.missingObjects.includes('claim_notifications'));
   assert.deepEqual(await inspectDatabaseSchema({ rpc: async () => ({ data: null, error: { code: 'PGRST202' } }) }), {
-    databaseConfigured: true, databaseReady: false, missingObjects: [], schemaCheckError: 'PGRST202'
+    databaseConfigured: true, databaseReady: false, missingObjects: REQUIRED_SCHEMA_OBJECTS, schemaCheckError: 'PGRST202'
   });
   assert.deepEqual(await inspectDatabaseSchema(null), {
     databaseConfigured: false, databaseReady: false, missingObjects: REQUIRED_SCHEMA_OBJECTS
   });
-  assert.equal((await inspectDatabaseSchema({ rpc: async () => { throw Object.assign(new Error('offline'), { code: 'fetch_failed' }); } })).schemaCheckError, 'fetch_failed');
+  const thrownFailure = await inspectDatabaseSchema({ rpc: async () => { throw Object.assign(new Error('offline'), { code: 'fetch_failed' }); } });
+  assert.equal(thrownFailure.schemaCheckError, 'fetch_failed');
+  assert.deepEqual(thrownFailure.missingObjects, REQUIRED_SCHEMA_OBJECTS);
+});
+
+test('health and notification worker use the same fail-closed schema result', async () => {
+  assert.match(apiSource, /app\.get\('\/health',[\s\S]*?const database = await inspectDatabaseSchema\(supabase\);[\s\S]*?const ready = database\.databaseReady;/);
+  assert.match(apiSource, /runQueueWhenReady\(\s*\(\) => inspectDatabaseSchema\(supabase\)/);
+  const partialStatus = { customers: true, notifications: true };
+  const client = { rpc: async () => ({ data: partialStatus, error: null }) };
+  const health = await inspectDatabaseSchema(client);
+  let claimCalls = 0;
+  const queue = await runQueueWhenReady(
+    () => inspectDatabaseSchema(client),
+    async () => { claimCalls += 1; return []; }
+  );
+  assert.deepEqual(queue.readiness, health);
+  assert.equal(health.databaseReady, false);
+  assert.deepEqual(health.missingObjects, REQUIRED_SCHEMA_OBJECTS.filter((name) => partialStatus[name] !== true));
+  assert.equal(queue.claimed, false);
+  assert.equal(claimCalls, 0);
 });

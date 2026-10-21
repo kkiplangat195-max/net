@@ -91,7 +91,8 @@ as $$
     ),
     'customers_rls', coalesce((select relrowsecurity from pg_catalog.pg_class where oid = pg_catalog.to_regclass('public.customers')), false),
     'customers_service_role_read', case when pg_catalog.to_regclass('public.customers') is not null then pg_catalog.has_table_privilege('service_role', 'public.customers', 'SELECT') else false end,
-    'customers_service_role_write', case when pg_catalog.to_regclass('public.customers') is not null then pg_catalog.has_table_privilege('service_role', 'public.customers', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.customers', 'UPDATE') else false end,
+    'customers_service_role_write', case when pg_catalog.to_regclass('public.customers') is not null then pg_catalog.has_table_privilege('service_role', 'public.customers', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.customers', 'UPDATE') else false end
+  ) || pg_catalog.jsonb_build_object(
     'visitor_links', pg_catalog.to_regclass('public.visitor_links') is not null,
     'visitor_links_columns', (
       select count(distinct column_name) = 15
@@ -119,7 +120,8 @@ as $$
     'orders_created_index', exists (select 1 from pg_catalog.pg_indexes where schemaname = 'public' and indexname = 'orders_created_at_idx' and indexdef ilike '%(created_at DESC)%'),
     'orders_rls', coalesce((select relrowsecurity from pg_catalog.pg_class where oid = pg_catalog.to_regclass('public.orders')), false),
     'orders_service_role_read', case when pg_catalog.to_regclass('public.orders') is not null then pg_catalog.has_table_privilege('service_role', 'public.orders', 'SELECT') else false end,
-    'orders_service_role_write', case when pg_catalog.to_regclass('public.orders') is not null then pg_catalog.has_table_privilege('service_role', 'public.orders', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.orders', 'UPDATE') else false end,
+    'orders_service_role_write', case when pg_catalog.to_regclass('public.orders') is not null then pg_catalog.has_table_privilege('service_role', 'public.orders', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.orders', 'UPDATE') else false end
+  ) || pg_catalog.jsonb_build_object(
     'notifications', pg_catalog.to_regclass('public.notifications') is not null,
     'notifications_columns', (
       select count(distinct column_name) = 15
@@ -146,7 +148,8 @@ as $$
     'notification_attempts_notification_index', exists (select 1 from pg_catalog.pg_indexes where schemaname = 'public' and indexname = 'notification_attempts_notification_idx' and indexdef ilike '%(notification_id, attempted_at DESC)%'),
     'notification_attempts_rls', coalesce((select relrowsecurity from pg_catalog.pg_class where oid = pg_catalog.to_regclass('public.notification_attempts')), false),
     'notification_attempts_service_role_read', case when pg_catalog.to_regclass('public.notification_attempts') is not null then pg_catalog.has_table_privilege('service_role', 'public.notification_attempts', 'SELECT') else false end,
-    'notification_attempts_service_role_write', case when pg_catalog.to_regclass('public.notification_attempts') is not null then pg_catalog.has_table_privilege('service_role', 'public.notification_attempts', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.notification_attempts', 'UPDATE') else false end,
+    'notification_attempts_service_role_write', case when pg_catalog.to_regclass('public.notification_attempts') is not null then pg_catalog.has_table_privilege('service_role', 'public.notification_attempts', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.notification_attempts', 'UPDATE') else false end
+  ) || pg_catalog.jsonb_build_object(
     'bundle_catalog', pg_catalog.to_regclass('public.bundle_catalog') is not null,
     'bundle_catalog_columns', (
       select count(distinct column_name) = 10
