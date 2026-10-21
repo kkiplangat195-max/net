@@ -223,8 +223,14 @@ app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req,
     p_order_ref: orderRef, p_customer_id: link.customer_id, p_link_id: link.id, p_bundle_id: bundle.id, p_bundle_name: bundle.name,
     p_amount: money(bundle.price), p_currency: 'USD', p_phone: p.data.phone, p_idempotency_key: p.data.idempotencyKey,
     p_payment_status: 'pending', p_notification_enabled: notificationEnabled, p_chat_id: notificationEnabled ? link.telegram_chat_id : null,
-    p_config_version: link.config_version || 1, p_notification_preferences: { ...notificationPreferences, bundleValidity: bundle.validity }
-  });
+ {
+  notifications_enabled: true,
+  notification_preferences: {
+    phone: true,
+    checkout_reference: false
+  }
+}
+  );
   if (error) {
     if (error.code === '23505') {
       const { data: old } = await supabase.from('orders').select('order_ref,bundle_name,payment_status,amount,currency,link_id,bundle_id,phone,notifications(status)').eq('idempotency_key', p.data.idempotencyKey).maybeSingle();
@@ -234,7 +240,7 @@ app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req,
       return res.status(409).json({ error: 'This submission key was already used. Refresh the page and submit again.' });
     }
     throw error;
-  }
+  
   res.status(201).json({ order: data, paymentInstructions: link.payment_instructions, payment: { provider: 'ecocash', initiated: false, reason: 'provider_not_configured' }, message: 'Order received. No automated EcoCash payment request was initiated because an authorized provider integration is not configured. Payment remains pending until independently verified.' });
 }));
 app.get('/api/admin/orders', ...adminRoute, asyncRoute(async (req, res) => {
