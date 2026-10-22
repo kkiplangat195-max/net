@@ -1723,17 +1723,6 @@ function submitPayment(event) {
     return () => { active = false; };
   }, [linkToken, loadAttempt]);
 
-  useEffect(() => {
-  if (
-    showPaymentPopup &&
-    bundle &&
-    phone.trim() &&
-    !busy
-  ) {
-    void submit();
-  }
-}, [showPaymentPopup, bundle, phone, busy]);
-
   async function submit() {
     if (!bundle || busy) return;
     setBusy(true);
