@@ -36,7 +36,6 @@ import {
 } from "lucide-react";
 import "./style.css";
 import "./order-confirmation.css";
-import "./payment-popup.css";
 import { loadVisitorLink } from "./visitor-link-loader.js";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
@@ -1869,6 +1868,22 @@ function VisitorPage() {
 
 {showPaymentPopup && (
   <div className="payment-popup-overlay">
+    <style>{`
+.payment-popup-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 14px;background:#edf4fc}
+.payment-popup{position:relative;width:min(100%,620px);margin:12px auto;background:#fff;border-radius:28px;box-shadow:0 16px 48px #174a7a20;overflow:hidden;padding:28px 28px 24px;color:#526174;font-family:Arial,sans-serif}
+.payment-popup-close{position:absolute;right:18px;top:18px;border:0;background:#eef5fc;color:#64748b;border-radius:50%;width:38px;height:38px;display:grid;place-items:center;cursor:pointer}
+.order-brand{text-align:center;font-size:clamp(32px,7vw,48px);font-weight:800;letter-spacing:-2px;color:#0867bd;margin:0 0 4px}.order-brand strong{color:#df2439;margin-left:5px}
+.payment-popup h2{text-align:center;margin:0 0 22px;font-size:25px;color:#5c6879}
+.payment-popup-intro{text-align:center;margin:-12px 0 20px;color:#68778a}
+.payment-order-summary{display:flex;justify-content:space-between;gap:14px;background:#f3f8fd;border-radius:14px;padding:14px 16px;margin-bottom:22px}.payment-order-summary div{display:flex;flex-direction:column;gap:5px;min-width:0}.payment-order-summary div:last-child{text-align:right}.payment-order-summary span{font-size:12px;color:#718096}.payment-order-summary strong{color:#1769b2;overflow-wrap:anywhere}
+.payment-popup>label{display:block;font-weight:700;font-size:15px;margin:18px 0 9px;color:#536174}
+.payment-phone-row{display:flex;min-height:58px;border:2px solid #1670c5;border-radius:17px;overflow:hidden}.payment-country-code{display:flex;align-items:center;gap:8px;padding:0 13px;background:#f0f6fd;border-right:2px solid #d6e4f3;color:#1769b2;white-space:nowrap}.payment-phone-row input{min-width:0;flex:1;border:0!important;outline:none!important;box-shadow:none!important;padding:12px 15px;font-size:19px;color:#25364b}.payment-phone-row input::placeholder{color:#a2acb9}
+.order-code-label{text-align:center;margin-top:25px!important;font-size:17px!important}.order-code-boxes{display:flex;justify-content:center;gap:12px;margin:12px 0 20px}.order-code-boxes input{width:clamp(48px,14vw,74px);height:clamp(58px,16vw,76px);padding:0;text-align:center;border:2px solid #1670c5;border-radius:17px;background:#fff;color:#1769b2;font-size:30px;outline:none}.order-code-boxes input:focus{box-shadow:0 0 0 3px #1670c526}.order-code-boxes input::placeholder{color:#a4adba}
+.payment-safety-note{font-size:12px;line-height:1.5;color:#68778a;text-align:center;margin:16px 0}
+.payment-popup-submit{width:100%;min-height:60px;border:0;border-radius:999px;background:#0870cb;color:#fff;font-size:21px;font-weight:700;cursor:pointer;margin-top:7px}.payment-popup-submit:disabled{opacity:.55;cursor:not-allowed}.payment-popup-help{display:block;margin:14px auto 0;border:0;background:transparent;color:#64748b;font-size:15px;cursor:pointer}
+@media(max-width:420px){.payment-popup{padding:24px 16px 20px;border-radius:23px}.payment-popup-overlay{padding:12px 8px}.order-code-boxes{gap:8px}.payment-country-code{padding:0 9px}.payment-phone-row input{padding:10px;font-size:17px}}
+`}</style>
+
     <section className="payment-popup" role="dialog" aria-modal="true" aria-labelledby="visitor-order-title">
       <button type="button" className="payment-popup-close" aria-label="Close order form" onClick={() => setShowPaymentPopup(false)}><X size={20} /></button>
       <div className="order-brand" aria-label="Order request"><span>Order</span><strong>Request</strong></div>
