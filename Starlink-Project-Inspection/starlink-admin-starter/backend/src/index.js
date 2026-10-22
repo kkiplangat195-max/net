@@ -331,10 +331,32 @@ app.get('/api/admin/notifications', ...adminRoute, asyncRoute(async (_req, res) 
   if (error) throw error; res.json({ notifications: data });
 }));
 app.post('/api/admin/notifications/:id/retry', ...adminRoute, asyncRoute(async (req, res) => {
-  const { data: n, error: e } = await supabase.from('notifications').select('id,status,attempts').eq('id', req.params.id).single();
+  const { data: n, error: e } = await supabase.from('notifications').select('id,status,attempts,link_id,customer_id').eq('id', req.params.id).single();
   if (e || !n) return res.status(404).json({ error: 'Notification not found' });
   if (n.status !== 'failed') return res.status(409).json({ error: 'Only failed notifications can be retried.' });
-  const { data, error } = await supabase.from('notifications').update({ status: 'queued', attempts: 0, next_attempt_at: new Date().toISOString(), processing_started_at: null, sent_at: null, last_error: null }).eq('id', n.id).eq('status', 'failed').select().maybeSingle();
+
+  let destination = null;
+  if (n.link_id) {
+    const { data: link, error: linkError } = await supabase.from('visitor_links').select('telegram_chat_id').eq('id', n.link_id).maybeSingle();
+    if (linkError) throw linkError;
+    destination = link?.telegram_chat_id || null;
+  }
+  if (!destination && n.customer_id) {
+    const { data: customer, error: customerError } = await supabase.from('customers').select('telegram_chat_id').eq('id', n.customer_id).maybeSingle();
+    if (customerError) throw customerError;
+    destination = customer?.telegram_chat_id || null;
+  }
+  if (!destination) return res.status(400).json({ error: 'No Telegram Chat ID is configured for this notification. Update the visitor link or customer settings first.' });
+
+  const { data, error } = await supabase.from('notifications').update({
+    status: 'queued',
+    attempts: 0,
+    intended_chat_id: destination,
+    next_attempt_at: new Date().toISOString(),
+    processing_started_at: null,
+    sent_at: null,
+    last_error: null
+  }).eq('id', n.id).eq('status', 'failed').select().maybeSingle();
   if (error) throw error;
   if (!data) return res.status(409).json({ error: 'Notification state changed. Refresh and try again.' });
   res.json({ notification: data, message: 'Retry queued.' });
@@ -398,8 +420,46 @@ async function processNotifications() {
         const prefs = job.message_fields || {};
         const text = formatOrderNotification(job, prefs);
         if (!text) throw new Error('Order notification is disabled for this event.');
-        const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: job.intended_chat_id, text }), signal: AbortSignal.timeout(10000) });
-        const result = await response.json().catch(() => ({})); if (!response.ok || !result.ok) throw new Error(result.description || `Telegram HTTP ${response.status}`); status = 'sent';
+        let response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: job.intended_chat_id, text }), signal: AbortSignal.timeout(10000) });
+        let result = await response.json().catch(() => ({}));
+        if ((!response.ok || !result.ok) && /chat not found/i.test(String(result.description || ''))) {
+          // A link may contain a stale Chat ID. Fall back to the customer's verified destination.
+          const { data: notification, error: notificationLookupError } = await supabase.from('notifications').select('customer_id,link_id').eq('id', job.id).maybeSingle();
+          if (notificationLookupError) throw notificationLookupError;
+          if (notification?.customer_id) {
+            const { data: customer, error: customerLookupError } = await supabase.from('customers').select('telegram_chat_id').eq('id', notification.customer_id).maybeSingle();
+            if (customerLookupError) throw customerLookupError;
+            const fallbackChatId = customer?.telegram_chat_id || null;
+            if (fallbackChatId && String(fallbackChatId) !== String(job.intended_chat_id)) {
+              const fallbackResponse = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: fallbackChatId, text }), signal: AbortSignal.timeout(10000) });
+              const fallbackResult = await fallbackResponse.json().catch(() => ({}));
+              if (fallbackResponse.ok && fallbackResult.ok) {
+                response = fallbackResponse;
+                result = fallbackResult;
+                const { error: destinationError } = await supabase.from('notifications').update({ intended_chat_id: fallbackChatId }).eq('id', job.id);
+                if (destinationError) console.warn('Notification sent, but fallback destination could not be saved:', safeQueueErrorDetails(destinationError));
+                if (notification.link_id) {
+                  const { data: link, error: linkLookupError } = await supabase.from('visitor_links').select('telegram_chat_id,config_version').eq('id', notification.link_id).maybeSingle();
+                  if (linkLookupError) console.warn('Notification sent, but link destination could not be checked for repair:', safeQueueErrorDetails(linkLookupError));
+                  else if (link && String(link.telegram_chat_id || '') === String(job.intended_chat_id || '')) {
+                    const { error: linkRepairError } = await supabase.from('visitor_links').update({
+                      telegram_chat_id: fallbackChatId,
+                      config_version: (link.config_version || 1) + 1,
+                      updated_at: new Date().toISOString()
+                    }).eq('id', notification.link_id).eq('telegram_chat_id', job.intended_chat_id);
+                    if (linkRepairError) console.warn('Notification sent, but stale link Chat ID could not be repaired:', safeQueueErrorDetails(linkRepairError));
+                    else console.warn('Repaired stale visitor-link Telegram destination using the customer Chat ID.');
+                  }
+                }
+              } else {
+                result = fallbackResult;
+                response = fallbackResponse;
+              }
+            }
+          }
+        }
+        if (!response.ok || !result.ok) throw new Error(result.description || `Telegram HTTP ${response.status}`);
+        status = 'sent';
       } catch (err) { errorText = String(err?.message || 'Delivery failed').slice(0, 500); }
       const attempts = Number(job.attempts || 0);
       const outcome = notificationOutcome({ sent: status === 'sent', attempt: attempts });
