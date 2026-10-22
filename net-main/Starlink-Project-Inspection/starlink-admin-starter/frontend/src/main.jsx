@@ -1804,14 +1804,9 @@ function submitPayment(event) {
               <div><dt>Payment status</dt><dd>{result.order.payment_status || "pending"}</dd></div>
             </dl>
             <div className="pending-box">
-              Payment is not confirmed
+      
               <p>{result.paymentInstructions || link.paymentInstructions}</p>
             </div>
-            <p>
-  {result.order.notification_queued
-    ? "Your order details will be sent to our service team for processing."
-    : "Your order was saved."}
-</p>
 
 {paymentError && (
   <p className="error" role="alert">{paymentError}</p>
