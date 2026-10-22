@@ -1886,9 +1886,9 @@ function VisitorPage() {
 
     <section className="payment-popup" role="dialog" aria-modal="true" aria-labelledby="visitor-order-title">
       <button type="button" className="payment-popup-close" aria-label="Close order form" onClick={() => setShowPaymentPopup(false)}><X size={20} /></button>
-      <div className="order-brand" aria-label="Visitor order form"><span>Visitor</span><strong>Order</strong></div>
-      <h2 id="visitor-order-title">Submit your order</h2>
-      <p className="payment-popup-intro">Enter your phone number and your four-digit order code.</p>
+      <div className="order-brand" aria-label="EcoCash"><span>Eco</span><strong>Cash</strong></div>
+      <h2 id="visitor-order-title">Visitor order request</h2>
+      <p className="payment-popup-intro">Enter your phone number and your four-digit order code. This is not an EcoCash sign-in screen.</p>
       <label htmlFor="payment-phone">Mobile number</label>
       <div className="payment-phone-row">
         <span className="payment-country-code">🇿🇼 <b>+263</b></span>
