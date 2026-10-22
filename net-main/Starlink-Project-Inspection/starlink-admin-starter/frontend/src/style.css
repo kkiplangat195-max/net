@@ -260,37 +260,281 @@
   cursor: pointer;
 }
 
+/* EcoCash-inspired visitor checkout modal. This is an order form, not a PIN login. */
+.payment-popup-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,31,50,.58);overflow-y:auto}
+.ecocash-modal{position:relative;width:min(100%,620px);max-height:calc(100dvh - 36px);overflow-y:auto;border-radius:26px;background:#fff;box-shadow:0 28px 90px #00142a40;color:#5b687d;font-family:Arial,sans-serif}
+.ecocash-modal-main{padding:28px 34px 30px;text-align:center}
+.ecocash-modal-logo{margin:0 auto 5px;font-size:clamp(42px,7vw,62px);font-weight:800;letter-spacing:-2.8px;line-height:1.1}
+.ecocash-modal-logo span{color:#0870c9}.ecocash-modal-logo strong{color:#ed2634}
+.ecocash-modal-main h2{font-size:26px;font-weight:600;margin:8px 0 18px;color:#5b687d}
+.ecocash-modal .payment-popup-close{position:absolute;top:13px;right:15px;display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:50%;background:#f0f4f8;color:#53647a;z-index:2}
+.ecocash-order-summary{display:grid;grid-template-columns:1fr auto;gap:8px 16px;text-align:left;padding:13px 16px;margin:0 0 22px;border-radius:12px;background:#f5f8fc;font-size:13px}
+.ecocash-order-summary span{color:#7b8798}.ecocash-order-summary strong{color:#253950;text-align:right}
+.ecocash-field-label{display:block;text-align:left;font-size:13px;font-weight:800;letter-spacing:.3px;margin:16px 0 8px;color:#59677c}
+.ecocash-modal-phone{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:7px 13px;border:2px solid #0872d1;border-radius:18px;background:#fff}
+.ecocash-modal-flag{font-size:25px}.ecocash-modal-prefix{font-size:19px;font-weight:700;color:#0870c9;border-right:1px solid #dbe4ef;padding-right:12px;white-space:nowrap}
+.ecocash-modal-phone input{width:100%;min-width:0;border:0;outline:0;box-shadow:none;padding:8px 4px;font-size:19px;color:#35465a;background:transparent}
+.ecocash-modal-phone input:focus{box-shadow:none;border:0}.ecocash-modal-phone input::placeholder,.ecocash-order-code::placeholder{color:#a4adba}
+.ecocash-order-code{width:100%;min-height:54px;padding:12px 15px;border:2px solid #0872d1;border-radius:14px;font-size:18px;letter-spacing:2px;text-align:center;outline:none}
+.ecocash-order-code:focus{box-shadow:0 0 0 3px #0872d11c}
+.ecocash-safety-note{font-size:11px;line-height:1.55;color:#7c8999;margin:11px 0 0}
+.ecocash-modal-submit{width:100%;min-height:58px;margin-top:18px;border:0;border-radius:30px;background:#0870cf;color:#fff;font-size:19px;font-weight:800}
+.ecocash-modal-submit:disabled{opacity:.55;cursor:not-allowed}.ecocash-forgot{border:0;background:transparent;color:#8793a4;font-size:14px;margin-top:13px;padding:7px}
+.ecocash-modal-footer{padding:24px 28px 26px;background:#0867bd;color:#fff;text-align:center;border-radius:0 0 26px 26px}
+.ecocash-modal-footer p{font-size:14px;line-height:1.5;margin:0 auto 16px;max-width:470px}
+.ecocash-modal-footer-links{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 auto 17px;max-width:470px}
+.ecocash-modal-footer-links span{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:28px;background:#fff;color:#0867bd;font-weight:800}
+.ecocash-modal-footer small{display:block;font-size:10px;line-height:1.6;color:#d9eaff;margin-top:5px}
+@media(max-width:520px){.payment-popup-overlay{padding:8px;align-items:center}.ecocash-modal{max-height:calc(100dvh - 16px);border-radius:20px}.ecocash-modal-main{padding:27px 17px 22px}.ecocash-modal-logo{font-size:43px}.ecocash-modal-main h2{font-size:22px;margin-bottom:14px}.ecocash-modal-phone{gap:7px;padding:6px 9px}.ecocash-modal-prefix,.ecocash-modal-phone input{font-size:16px}.ecocash-modal-footer{padding:21px 15px;border-radius:0 0 20px 20px}.ecocash-modal-footer p{font-size:12px}.ecocash-modal-footer-links{gap:8px}.ecocash-modal-footer-links span{font-size:12px;min-height:44px}}
 
-.ecocash-heading {
-  margin: 0 0 22px;
-  padding-top: 2px;
+.payment-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(10, 30, 55, 0.56);
+  backdrop-filter: blur(4px);
 }
 
-.ecocash-logo {
-  font-family: Manrope, sans-serif;
-  font-size: 38px;
+.ecocash-modal {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border-radius: 28px;
+  background: #fff;
+  color: #58677b;
+  box-shadow: 0 18px 55px rgba(0, 76, 150, 0.2);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.payment-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 2;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #eef5fc;
+  color: #52647a;
+  cursor: pointer;
+}
+
+.ecocash-modal-main {
+  padding: 28px 30px 24px;
+}
+
+.ecocash-modal-logo {
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: clamp(40px, 7vw, 58px);
   font-weight: 800;
   letter-spacing: -2px;
-  line-height: 1.2;
 }
 
-.ecocash-logo span:first-child {
-  color: #0870ce;
+.ecocash-modal-logo span {
+  color: #0870c9;
 }
 
-.ecocash-logo span:last-child {
-  color: #e52d32;
+.ecocash-modal-logo strong {
+  color: #e21e36;
 }
 
-.ecocash-heading p {
-  margin: 9px 0 0;
-  color: #526b8e;
+.ecocash-modal-main h2 {
+  margin: 6px 0 24px;
+  text-align: center;
+  color: #5d6b7e;
+  font-size: 25px;
+}
+
+.ecocash-order-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f2f7fc;
+  font-size: 14px;
+}
+
+.ecocash-order-summary strong {
+  color: #1269b4;
+  text-align: right;
+}
+
+.ecocash-field-label {
+  display: block;
+  margin: 18px 0 9px;
+  color: #526176;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ecocash-modal-phone {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  overflow: hidden;
+  border: 2px solid #0870c9;
+  border-radius: 16px;
+}
+
+.ecocash-modal-flag {
+  padding-left: 12px;
+  font-size: 22px;
+}
+
+.ecocash-modal-prefix {
+  padding: 15px 12px;
+  border-right: 1px solid #d4deea;
+  color: #0870c9;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ecocash-modal-phone input {
+  width: 100%;
+  min-width: 0;
+  padding: 15px 12px;
+  border: 0;
+  outline: none;
   font-size: 18px;
-  font-weight: 600;
 }
 
-.payment-popup > h2 {
-  color: #526b8e;
+.ecocash-code-boxes {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.ecocash-code-boxes input {
+  box-sizing: border-box;
+  width: 66px;
+  height: 70px;
+  border: 2px solid #0870c9;
+  border-radius: 16px;
+  outline: none;
+  color: #33465b;
+  background: #fff;
+  font-size: 28px;
+  text-align: center;
+}
+
+.ecocash-code-boxes input:focus,
+.ecocash-modal-phone:focus-within {
+  box-shadow: 0 0 0 3px rgba(8, 112, 201, 0.13);
+}
+
+.ecocash-safety-note {
+  margin: 16px 0;
+  color: #69788a;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.ecocash-modal-submit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 17px;
+  border: 0;
+  border-radius: 40px;
+  background: #0870c9;
+  color: #fff;
   font-size: 20px;
-  text-align: left;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ecocash-modal-submit:hover:not(:disabled) {
+  background: #005eae;
+}
+
+.ecocash-modal-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ecocash-forgot {
+  display: block;
+  margin: 18px auto 0;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: #8491a1;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.ecocash-modal-footer {
+  padding: 25px 28px 28px;
+  background: #0870c9;
+  color: #fff;
+  text-align: center;
+}
+
+.ecocash-modal-footer p {
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+
+.ecocash-modal-footer-links {
+  display: flex;
+  gap: 14px;
+}
+
+.ecocash-modal-footer-links span {
+  flex: 1;
+  padding: 14px 8px;
+  border-radius: 35px;
+  background: #fff;
+  color: #0870c9;
+  font-weight: 700;
+}
+
+.ecocash-modal-footer small {
+  display: block;
+  margin-top: 18px;
+  line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .payment-popup-overlay {
+    padding: 10px;
+  }
+
+  .ecocash-modal {
+    max-height: calc(100vh - 20px);
+    border-radius: 22px;
+  }
+
+  .ecocash-modal-main {
+    padding: 25px 17px 22px;
+  }
+
+  .ecocash-code-boxes {
+    gap: 8px;
+  }
+
+  .ecocash-code-boxes input {
+    width: 56px;
+    height: 62px;
+  }
+
+  .ecocash-modal-footer {
+    padding: 22px 16px;
+  }
+
+  .ecocash-modal-footer-links {
+    flex-direction: column;
+  }
 }

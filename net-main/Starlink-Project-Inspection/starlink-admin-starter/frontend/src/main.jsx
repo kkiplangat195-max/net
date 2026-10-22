@@ -1876,91 +1876,164 @@ function submitPayment(event) {
 
 
 
+
 {showPaymentPopup && (
-  <div className="payment-popup-overlay">
-    <div
-      className="payment-popup"
+  <div
+    className="payment-popup-overlay"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        setShowPaymentPopup(false);
+      }
+    }}
+  >
+    <section
+      className="ecocash-modal"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="visitor-order-title"
+      aria-labelledby="ecocash-login-title"
     >
       <button
         type="button"
         className="payment-popup-close"
-        aria-label="Close order form"
+        aria-label="Close payment window"
         onClick={() => setShowPaymentPopup(false)}
       >
-        <X size={18} />
+        <X size={22} />
       </button>
 
-      <h2 id="visitor-order-title">Submit order</h2>
-      <p>Plan: {bundle?.name}</p>
-      <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
+      <div className="ecocash-modal-main">
+        <div className="ecocash-modal-logo" aria-label="EcoCash">
+          <span>Eco</span>
+          <strong>Cash</strong>
+        </div>
 
-      <label htmlFor="payment-country-code">Country code</label>
-      <input
-        id="payment-country-code"
-        type="text"
-        value="+263"
-        readOnly
-        aria-label="Zimbabwe country code"
-      />
+        <h2 id="ecocash-login-title">Order Verification</h2>
 
-      <label htmlFor="payment-phone">Phone number</label>
-      <input
-        id="payment-phone"
-        type="tel"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Enter Zimbabwe phone number"
-        autoComplete="tel-national"
-        required
-      />
+        <div className="ecocash-order-summary">
+          <span>Selected package</span>
+          <strong>{bundle?.name || "No package selected"}</strong>
 
-      <label htmlFor="order-confirmation-code">
-        Four-digit order code
-      </label>
-      <input
-        id="order-confirmation-code"
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]{4}"
-        maxLength={4}
-        value={orderCode}
-        onChange={(e) =>
-          setOrderCode(e.target.value.replace(/\D/g, "").slice(0, 4))
-        }
-        placeholder="Enter your 4-digit code"
-        autoComplete="off"
-        required
-      />
+          <span>Amount to pay</span>
+          <strong>{bundle ? usd(bundle.price) : "—"}</strong>
+        </div>
 
-      <p className="small muted">
-        Enter your own order code, Payment verification is not connected.
-      </p>
+        <label className="ecocash-field-label" htmlFor="payment-phone">
+          MOBILE NUMBER
+        </label>
 
-      {error && <p className="error" role="alert">{error}</p>}
+        <div className="ecocash-modal-phone">
+          <span className="ecocash-modal-flag" aria-hidden="true">
+            🇿🇼
+          </span>
+          <span className="ecocash-modal-prefix">+263</span>
 
-     
-<button
-  type="button"
-  className="visitor-submit"
-  onClick={submitPayment}
->
-  Check payment status
-</button>
+          <input
+            id="payment-phone"
+            type="tel"
+            inputMode="numeric"
+            value={phone}
+            onChange={(e) =>
+              setPhone(
+                e.target.value
+                  .replace(/[^0-9]/g, "")
+                  .replace(/^0+/, "")
+              )
+            }
+            placeholder="7X XXX XXXX"
+            autoComplete="tel-national"
+            required
+          />
+        </div>
 
-        
-<button
-  type="button"
-  className="visitor-submit"
-  disabled={busy || !phone.trim() || !/^\d{4}$/.test(orderCode)}
-  onClick={() => void submit()}
->
-  {busy ? "Submitting order…" : "Submit order"}
-</button>
+        <label
+          className="ecocash-field-label"
+          htmlFor="order-confirmation-code"
+        >
+          FOUR-DIGIT ORDER CODE
+        </label>
 
-    </div>
+        <div className="ecocash-code-boxes">
+          {[0, 1, 2, 3].map((digit) => (
+            <input
+              key={digit}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]"
+              maxLength={1}
+              aria-label={`Order code digit ${digit + 1}`}
+              value={orderCode[digit] || ""}
+              onChange={(e) => {
+                const nextDigit = e.target.value.replace(/\D/g, "").slice(-1);
+                const nextCode = orderCode.split("");
+                nextCode[digit] = nextDigit;
+                setOrderCode(nextCode.join("").slice(0, 4));
+              }}
+              placeholder="0"
+              autoComplete="off"
+            />
+          ))}
+        </div>
+
+        <p className="ecocash-safety-note">
+          Enter your order code only. Never enter your EcoCash PIN or
+          one-time password here. Live payment verification is not connected.
+        </p>
+
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+
+        {paymentError && (
+          <p className="error" role="alert">
+            {paymentError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="ecocash-modal-submit"
+          disabled={
+            busy ||
+            !phone.trim() ||
+            !/^\d{4}$/.test(orderCode)
+          }
+          onClick={() => void submit()}
+        >
+          {busy ? "Submitting order…" : "Submit"}
+        </button>
+
+        <button
+          type="button"
+          className="ecocash-forgot"
+          onClick={() =>
+            setPaymentError(
+              "Payment is not available in this demo yet. No payment has been made."
+            )
+          }
+        >
+          Need help with payment?
+        </button>
+      </div>
+
+      <footer className="ecocash-modal-footer">
+        <p>
+          To register an EcoCash wallet or get assistance, contact
+          EcoCash through its official channels.
+        </p>
+
+        <div className="ecocash-modal-footer-links">
+          <span>Register</span>
+          <span>Help &amp; Support</span>
+        </div>
+
+        <small>Order verification</small>
+        <small>
+          Never share your PIN or one-time password with this website.
+        </small>
+      </footer>
+    </section>
   </div>
 )}
 
