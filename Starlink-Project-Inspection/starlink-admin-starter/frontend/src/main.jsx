@@ -1691,13 +1691,6 @@ function VisitorPage() {
   const [phone, setPhone] = useState("");
   const [orderCode, setOrderCode] = useState("");
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
-  
-const [paymentError, setPaymentError] = useState("");
-
-function submitPayment(event) {
-  event.preventDefault();
-  setPaymentError("Payment verification is not connected yet. No payment has been made.");
-}
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -1816,9 +1809,6 @@ function submitPayment(event) {
  Enter your own four-digit order code. Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
 </p>
 
-{paymentError && (
-  <p className="error" role="alert">{paymentError}</p>
-)}
             <button
               type="button"
               className="visitor-submit order-done"
@@ -1870,7 +1860,7 @@ function submitPayment(event) {
     setShowPaymentPopup(true);
   }}
 >
-  Continue to pay using EcoCash
+  Continue to submit order
 </button>
 
 
@@ -1901,7 +1891,7 @@ function submitPayment(event) {
       <input
         id="payment-country-code"
         type="text"
-        value="+263"
+        value={countryCode}
         readOnly
         aria-label="Zimbabwe country code"
       />
@@ -1936,21 +1926,11 @@ function submitPayment(event) {
       />
 
       <p className="small muted">
-        Enter your own order code, Payment verification is not connected.
+        Submit an order request only. This site does not initiate or verify EcoCash payments. Never enter an EcoCash PIN or one-time password.
       </p>
 
       {error && <p className="error" role="alert">{error}</p>}
 
-     
-<button
-  type="button"
-  className="visitor-submit"
-  onClick={submitPayment}
->
-  Check payment status
-</button>
-
-        
 <button
   type="button"
   className="visitor-submit"
