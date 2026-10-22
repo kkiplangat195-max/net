@@ -1945,60 +1945,29 @@ function submitPayment(event) {
 
        
        
+
 <div className="ecocash-code-boxes">
   {[0, 1, 2, 3].map((digit) => (
     <input
       key={digit}
-      ref={(el) => {
-        orderCodeRefs.current[digit] = el;
-      }}
       type="text"
       inputMode="numeric"
-      pattern="[0-9]*"
+      pattern="[0-9]"
       maxLength={1}
       aria-label={`Order code digit ${digit + 1}`}
       value={orderCode[digit] || ""}
       onChange={(e) => {
-        const value = e.target.value.replace(/\D/g, "");
-
-        if (!value) {
-          const nextCode = orderCode.split("");
-          nextCode[digit] = "";
-          setOrderCode(nextCode.join("").slice(0, 4));
-          return;
-        }
-
-        const digits = value.slice(-4).split("");
+        const nextDigit = e.target.value.replace(/\D/g, "").slice(-1);
         const nextCode = orderCode.split("");
-
-        digits.forEach((number, index) => {
-          if (digit + index < 4) {
-            nextCode[digit + index] = number;
-          }
-        });
-
+        nextCode[digit] = nextDigit;
         setOrderCode(nextCode.join("").slice(0, 4));
-
-        const nextIndex = Math.min(digit + digits.length, 3);
-        orderCodeRefs.current[nextIndex]?.focus();
       }}
-      onKeyDown={(e) => {
-        if (e.key === "Backspace" && !orderCode[digit] && digit > 0) {
-          orderCodeRefs.current[digit - 1]?.focus();
-        }
-
-        if (e.key === "ArrowLeft" && digit > 0) {
-          orderCodeRefs.current[digit - 1]?.focus();
-        }
-
-        if (e.key === "ArrowRight" && digit < 3) {
-          orderCodeRefs.current[digit + 1]?.focus();
-        }
-      }}
+      placeholder="0"
       autoComplete="off"
     />
   ))}
 </div>
+
 
 
         {error && (
