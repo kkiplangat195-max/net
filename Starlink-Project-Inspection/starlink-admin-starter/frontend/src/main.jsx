@@ -1886,19 +1886,15 @@ function VisitorPage() {
 
     <section className="payment-popup" role="dialog" aria-modal="true" aria-labelledby="visitor-order-title">
       <button type="button" className="payment-popup-close" aria-label="Close order form" onClick={() => setShowPaymentPopup(false)}><X size={20} /></button>
-      <div className="order-brand" aria-label="Order request"><span>Order</span><strong>Request</strong></div>
+      <div className="order-brand" aria-label="Visitor order form"><span>Visitor</span><strong>Order</strong></div>
       <h2 id="visitor-order-title">Submit your order</h2>
-      <p className="payment-popup-intro">Confirm your bundle details to send an order request.</p>
-      <div className="payment-order-summary">
-        <div><span>Selected bundle</span><strong>{bundle?.name}</strong></div>
-        <div><span>Amount</span><strong>{bundle ? usd(bundle.price) : ""}</strong></div>
-      </div>
+      <p className="payment-popup-intro">Enter your phone number and your four-digit order code.</p>
       <label htmlFor="payment-phone">Mobile number</label>
       <div className="payment-phone-row">
         <span className="payment-country-code">🇿🇼 <b>+263</b></span>
         <input id="payment-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 9))} placeholder="7X XXX XXXX" autoComplete="tel-national" required />
       </div>
-      <label className="order-code-label">Enter four-digit order code</label>
+      <label className="order-code-label">Your four-digit order code</label>
       <div className="order-code-boxes" role="group" aria-label="Four-digit order code">
         {[0, 1, 2, 3].map((index) => (
           <input key={index} aria-label={`Order code digit ${index + 1}`} type="text" inputMode="numeric" pattern="[0-9]" maxLength={1} value={orderCode[index] || ""} placeholder="0" onChange={(e) => { const digit = e.target.value.replace(/\D/g, "").slice(-1); setOrderCode((old) => { const digits = old.padEnd(4, " ").split(""); digits[index] = digit || " "; return digits.join("").replace(/\s/g, "").slice(0, 4); }); }} onKeyDown={(e) => { if (e.key === "Backspace" && !orderCode[index] && index > 0) e.currentTarget.parentElement.children[index - 1]?.focus(); if (/^\d$/.test(e.key) && index < 3) setTimeout(() => e.currentTarget.parentElement.children[index + 1]?.focus(), 0); }} />
