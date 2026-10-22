@@ -52,6 +52,12 @@ const bundleSchema = z.object({ id: z.string().min(1), name: z.string().min(1).m
 const customerSchema = z.object({ name: z.string().trim().min(1).max(120), notes: z.string().max(2000).optional().default(''), telegramChatId: z.string().trim().max(100).optional().default(''), notificationsEnabled: z.boolean().optional().default(false), notificationPreferences: notificationPreferencesSchema.optional().default({}) });
 const linkSchema = z.object({ customerId: z.string().uuid(), name: z.string().trim().min(1).max(120), bundles: z.array(bundleSchema).min(1), formConfig: z.record(z.string(), z.unknown()).optional().default({ phoneRequired: true }), paymentInstructions: z.string().max(2000).optional().default('Payment is pending. Follow only verified EcoCash instructions provided by the administrator. This website does not collect EcoCash PINs or one-time codes.'), telegramChatId: z.string().trim().max(100).optional().default(''), notificationsEnabled: z.boolean().optional().default(false), notificationPreferences: notificationPreferencesSchema.optional().default({}) });
 
+
+app.get('/health/live', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
+
 app.get('/health', asyncRoute(async (_req, res) => {
   const database = await inspectDatabaseSchema(supabase);
   const ready = database.databaseReady;
