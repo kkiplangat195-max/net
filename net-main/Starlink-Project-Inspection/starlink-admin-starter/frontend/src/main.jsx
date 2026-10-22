@@ -2017,7 +2017,6 @@ function submitPayment(event) {
       <footer className="ecocash-modal-footer">
         <p>
           To register an EcoCash wallet or get assistance, contact
-          EcoCash through its official channels.
         </p>
 
         <div className="ecocash-modal-footer-links">
