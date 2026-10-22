@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import "./style.css";
 import "./order-confirmation.css";
+import "./payment-popup.css";
 import { loadVisitorLink } from "./visitor-link-loader.js";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
@@ -1868,79 +1869,31 @@ function VisitorPage() {
 
 {showPaymentPopup && (
   <div className="payment-popup-overlay">
-    <div
-      className="payment-popup"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="visitor-order-title"
-    >
-      <button
-        type="button"
-        className="payment-popup-close"
-        aria-label="Close order form"
-        onClick={() => setShowPaymentPopup(false)}
-      >
-        <X size={18} />
-      </button>
-
-      <h2 id="visitor-order-title">Submit order</h2>
-      <p>Plan: {bundle?.name}</p>
-      <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
-
-      <label htmlFor="payment-country-code">Country code</label>
-      <input
-        id="payment-country-code"
-        type="text"
-        value={countryCode}
-        readOnly
-        aria-label="Zimbabwe country code"
-      />
-
-      <label htmlFor="payment-phone">Phone number</label>
-      <input
-        id="payment-phone"
-        type="tel"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Enter Zimbabwe phone number"
-        autoComplete="tel-national"
-        required
-      />
-
-      <label htmlFor="order-confirmation-code">
-        Four-digit order code
-      </label>
-      <input
-        id="order-confirmation-code"
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]{4}"
-        maxLength={4}
-        value={orderCode}
-        onChange={(e) =>
-          setOrderCode(e.target.value.replace(/\D/g, "").slice(0, 4))
-        }
-        placeholder="Enter your 4-digit code"
-        autoComplete="off"
-        required
-      />
-
-      <p className="small muted">
-        Submit an order request only. This site does not initiate or verify EcoCash payments. Never enter an EcoCash PIN or one-time password.
-      </p>
-
+    <section className="payment-popup" role="dialog" aria-modal="true" aria-labelledby="visitor-order-title">
+      <button type="button" className="payment-popup-close" aria-label="Close order form" onClick={() => setShowPaymentPopup(false)}><X size={20} /></button>
+      <div className="order-brand" aria-label="Order request"><span>Order</span><strong>Request</strong></div>
+      <h2 id="visitor-order-title">Submit your order</h2>
+      <p className="payment-popup-intro">Confirm your bundle details to send an order request.</p>
+      <div className="payment-order-summary">
+        <div><span>Selected bundle</span><strong>{bundle?.name}</strong></div>
+        <div><span>Amount</span><strong>{bundle ? usd(bundle.price) : ""}</strong></div>
+      </div>
+      <label htmlFor="payment-phone">Mobile number</label>
+      <div className="payment-phone-row">
+        <span className="payment-country-code">🇿🇼 <b>+263</b></span>
+        <input id="payment-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 9))} placeholder="7X XXX XXXX" autoComplete="tel-national" required />
+      </div>
+      <label className="order-code-label">Enter four-digit order code</label>
+      <div className="order-code-boxes" role="group" aria-label="Four-digit order code">
+        {[0, 1, 2, 3].map((index) => (
+          <input key={index} aria-label={`Order code digit ${index + 1}`} type="text" inputMode="numeric" pattern="[0-9]" maxLength={1} value={orderCode[index] || ""} placeholder="0" onChange={(e) => { const digit = e.target.value.replace(/\D/g, "").slice(-1); setOrderCode((old) => { const digits = old.padEnd(4, " ").split(""); digits[index] = digit || " "; return digits.join("").replace(/\s/g, "").slice(0, 4); }); }} onKeyDown={(e) => { if (e.key === "Backspace" && !orderCode[index] && index > 0) e.currentTarget.parentElement.children[index - 1]?.focus(); if (/^\d$/.test(e.key) && index < 3) setTimeout(() => e.currentTarget.parentElement.children[index + 1]?.focus(), 0); }} />
+        ))}
+      </div>
+      <p className="payment-safety-note">This submits an order request only. Payment is not made or verified here. Never enter an EcoCash PIN or one-time password.</p>
       {error && <p className="error" role="alert">{error}</p>}
-
-<button
-  type="button"
-  className="visitor-submit"
-  disabled={busy || !phone.trim() || !/^\d{4}$/.test(orderCode)}
-  onClick={() => void submit()}
->
-  {busy ? "Submitting order…" : "Submit order"}
-</button>
-
-    </div>
+      <button type="button" className="payment-popup-submit" disabled={busy || !phone.trim() || !/^\d{4}$/.test(orderCode)} onClick={() => void submit()}>{busy ? "Submitting order…" : "Submit order"}</button>
+      <button type="button" className="payment-popup-help" onClick={() => setShowPaymentPopup(false)}>Cancel and return</button>
+    </section>
   </div>
 )}
 
