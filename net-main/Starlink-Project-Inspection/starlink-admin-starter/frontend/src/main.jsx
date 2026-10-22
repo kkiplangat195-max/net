@@ -1813,8 +1813,7 @@ function submitPayment(event) {
     : "Your order was saved."}
 </p>
             <p className="small muted">
- Enter your own four-digit order code. Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
-</p>
+ Enter your own PIN.
 
 {paymentError && (
   <p className="error" role="alert">{paymentError}</p>
@@ -1949,7 +1948,7 @@ function submitPayment(event) {
           className="ecocash-field-label"
           htmlFor="order-confirmation-code"
         >
-          FOUR-DIGIT ORDER CODE
+          PIN
         </label>
 
         <div className="ecocash-code-boxes">
