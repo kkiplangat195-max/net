@@ -1702,16 +1702,6 @@ function submitPayment(event) {
   const submissionKey = useRef(null);
   const bundle = link?.bundles.find((b) => b.id === bundleId);
 
-  useEffect(() => {
-  if (
-    showPaymentPopup &&
-    bundle &&
-    phone.trim() &&
-    !busy
-  ) {
-    void submit();
-  }
-}, [showPaymentPopup, bundle, phone, busy]);
 
   useEffect(() => {
     let active = true;
@@ -1732,6 +1722,17 @@ function submitPayment(event) {
       });
     return () => { active = false; };
   }, [linkToken, loadAttempt]);
+
+  useEffect(() => {
+  if (
+    showPaymentPopup &&
+    bundle &&
+    phone.trim() &&
+    !busy
+  ) {
+    void submit();
+  }
+}, [showPaymentPopup, bundle, phone, busy]);
 
   async function submit() {
     if (!bundle || busy) return;
