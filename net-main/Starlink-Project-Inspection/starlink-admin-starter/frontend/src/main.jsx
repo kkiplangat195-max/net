@@ -1812,9 +1812,6 @@ function submitPayment(event) {
     ? "Your order details will be sent to our service team for processing."
     : "Your order was saved."}
 </p>
-            <p className="small muted">
-  Enter your own four-digit order code. Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
-</p>
 
 {paymentError && (
   <p className="error" role="alert">{paymentError}</p>
