@@ -1974,11 +1974,6 @@ function submitPayment(event) {
           ))}
         </div>
 
-        <p className="ecocash-safety-note">
-          Enter your order code only. Never enter your EcoCash PIN or
-          one-time password here. Live payment verification is not connected.
-        </p>
-
         {error && (
           <p className="error" role="alert">
             {error}
@@ -2028,8 +2023,8 @@ function submitPayment(event) {
           <span>Help &amp; Support</span>
         </div>
 
-        <small>Order verification</small>
-              </footer>
+                <small>Order verification</small>
+      </footer>
     </section>
   </div>
 )}
