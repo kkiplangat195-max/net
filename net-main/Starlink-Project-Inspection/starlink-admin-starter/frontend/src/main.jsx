@@ -2029,10 +2029,7 @@ function submitPayment(event) {
         </div>
 
         <small>Order verification</small>
-        <small>
-          Never share your PIN or one-time password with this website.
-        </small>
-      </footer>
+              </footer>
     </section>
   </div>
 )}
