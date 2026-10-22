@@ -1957,11 +1957,21 @@ function submitPayment(event) {
       aria-label={`Order code digit ${digit + 1}`}
       value={orderCode[digit] || ""}
       onChange={(e) => {
-  const nextDigit = e.target.value.replace(/\D/g, "").slice(-1);
-  const nextCode = orderCode.split("");
-  nextCode[digit] = nextDigit;
-  setOrderCode(nextCode.join("").slice(0, 4));
-}}
+        const nextDigit = e.target.value.replace(/\D/g, "").slice(-1);
+        const nextCode = orderCode.split("");
+        nextCode[digit] = nextDigit;
+        const updatedCode = nextCode.join("").slice(0, 4);
+
+        setOrderCode(updatedCode);
+
+        if (nextDigit && digit < 3) {
+          e.target.parentElement?.children[digit + 1]?.focus();
+        }
+      }}
+      placeholder="0"
+      autoComplete="off"
+    />
+  ))}
 </div>
 
 
