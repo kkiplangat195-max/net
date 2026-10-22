@@ -1960,13 +1960,7 @@ function submitPayment(event) {
   const nextDigit = e.target.value.replace(/\D/g, "").slice(-1);
   const nextCode = orderCode.split("");
   nextCode[digit] = nextDigit;
-  const updatedCode = nextCode.join("").slice(0, 4);
-
-  setOrderCode(updatedCode);
-
-  if (nextDigit && digit < 3) {
-    e.target.parentElement?.children[digit + 1]?.focus();
-  }
+  setOrderCode(nextCode.join("").slice(0, 4));
 }}
 </div>
 
