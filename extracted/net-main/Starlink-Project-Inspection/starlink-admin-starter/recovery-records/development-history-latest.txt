@@ -1,0 +1,447 @@
+I’ll inspect the repository’s existing app structure and deployment/payment/notification paths, then implement the production setup that fits its current architecture and verify what can be tested locally.
+
+Ran terminal command: git status --short && printf '\nTop-level files:\n' && ls -la
+
+Find files matching `**/*`
+
+Search for `EcoCash|Telegram|telegram|notification|payment|CORS|cors|health|admin`
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/README.md"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/render.yaml"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/.env.example"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/package.json"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/configuration.js"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/notifications.js"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/supabase/migrations/001_initial.sql"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/supabase/migrations/002_notification_attempt_history.sql"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/frontend/package.json"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/frontend/.env.example"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/test/helpers.test.js"
+}
+
+The workspace is a starter rather than an existing production app: it currently targets Supabase, and its README explicitly says the original visitor site and EcoCash provider integration were not included. I’m checking whether the API and queue can be moved cleanly to Render PostgreSQL with a separate worker, and what deployment tests/config are missing.
+
+Read , lines 1 to 220
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    1,
+    220
+  ]
+}
+
+Read , lines 221 to 460
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    221,
+    460
+  ]
+}
+
+"Read" failed
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    461,
+    740
+  ]
+}
+Tool execution failed: view_range out of bounds
+
+Find files matching `starlink-admin/frontend/src/**/*`
+
+Find files matching `starlink-admin/backend/src/**/*`
+
+Find files matching `starlink-admin/**/{vercel.json,.gitignore,package.json,vite.config.*,*.test.js}`
+
+Search for `supabase|createClient|RUN_NOTIFICATION_WORKER|notifications|app\.(get|post|pu...`
+
+Ran terminal command: git -C /workspaces/STARLINK/starlink-admin status --short 2>/dev/null || true; find /workspaces/STARLINK/starlink-admin -maxdepth 3 -type f -not -path '*/node_modules/*' -not -path '*/dist/*' -print | sort
+
+Read , lines 1 to 110
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    1,
+    110
+  ]
+}
+
+Read , lines 111 to 220
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    111,
+    220
+  ]
+}
+
+Read , lines 221 to 317
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    221,
+    317
+  ]
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/frontend/vercel.json"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/.gitignore"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/frontend/vite.config.js"
+}
+
+Search for `VITE_API_URL|fetch\(|localhost:8080|/api/`
+
+Ran terminal command: git status --short --untracked-files=all; git check-ignore -v starlink-admin/backend/.env starlink-admin/frontend/.env.local || true; node --version; npm --version
+
+Ran terminal command: nl -ba backend/src/index.js | sed -n '58,145p'
+
+Ran terminal command: nl -ba backend/src/index.js | sed -n '146,240p'
+
+Ran terminal command: cat backend/package-lock.json | head -n 35; printf '\nFrontend env references:\n'; grep -n 'import.meta.env\|function api' frontend/src/main.jsx | head -n 10
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/filters.js"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/bundles.js"
+}
+
+Read , lines 1 to 90
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/frontend/src/main.jsx",
+  "view_range": [
+    1,
+    90
+  ]
+}
+
+Ran terminal command: nl -ba /workspaces/STARLINK/starlink-admin/backend/src/index.js | sed -n '58,145p'
+
+Ran terminal command: nl -ba /workspaces/STARLINK/starlink-admin/backend/src/index.js | sed -n '146,240p'
+
+Ran terminal command: nl -ba /workspaces/STARLINK/starlink-admin/backend/src/index.js | sed -n '241,317p'
+
+Ran terminal command: sed -n '1,35p' /workspaces/STARLINK/starlink-admin/backend/package-lock.json; printf '\nFrontend API config:\n'; sed -n '1,26p' /workspaces/STARLINK/starlink-admin/frontend/src/main.jsx
+
+Ran terminal command: sed -n '60,105p' /workspaces/STARLINK/starlink-admin/backend/src/index.js
+
+Ran terminal command: sed -n '106,160p' /workspaces/STARLINK/starlink-admin/backend/src/index.js
+
+Ran terminal command: sed -n '161,220p' /workspaces/STARLINK/starlink-admin/backend/src/index.js
+
+Ran terminal command: sed -n '221,250p' /workspaces/STARLINK/starlink-admin/backend/src/index.js
+
+Ran terminal command: sed -n '80,108p' /workspaces/STARLINK/starlink-admin/frontend/src/main.jsx
+
+Ran terminal command: sed -n '1,80p' /workspaces/STARLINK/starlink-admin/backend/supabase/migrations/001_initial.sql
+
+I’m switching the backend to direct PostgreSQL access and splitting notification delivery into its own Render worker. I’ll preserve the existing API and payment-pending behavior, add executable migrations and deployment smoke checks, and document the external credentials/configuration that cannot be verified from this workspace.
+
+Edit 
+
+Edit 
+
+Edit , 
+
+Edit , , 
+
+Edit , , , 
+
+Edit 
+
+"Apply Patch" failed
+Completed with input: "*** Begin Patch\n*** Add File: /workspaces/STARLINK/starlink-admin/render.yaml\n+databases:\n+  - name: starlink-primary\n+    databaseName: starlink\n+    user: starlink\n+    plan: basic-256mb\n+\n+services:\n+  - type: web\n+    name: starlink-admin-api\n+    runtime: node\n+    plan: starter\n+    rootDir: backend\n+    buildCommand: npm install\n+    preDeployCommand: npm run migrate\n+    startCommand: npm start\n+    healthCheckPath: /health\n+    envVars:\n+      - key: NODE_ENV\n+        value: production\n+      - key: DATABASE_URL\n+        fromDatabase:\n+          name: starlink-primary\n+          property: connectionString\n+      - key: ADMIN_EMAIL\n+        sync: false\n+      - key: ADMIN_PASSWORD_HASH\n+        sync: false\n+      - key: JWT_SECRET\n+        generateValue: true\n+      - key: TELEGRAM_BOT_TOKEN\n+        sync: false\n+      - key: FRONTEND_URL\n+        sync: false\n+      - key: PUBLIC_APP_URL\n+        sync: false\n+\n+  - type: worker\n+    name: starlink-notification-worker\n+    runtime: node\n+    plan: starter\n+    rootDir: backend\n+    buildCommand: npm install\n+    startCommand: npm run worker\n+    envVars:\n+      - key: NODE_ENV\n+        value: production\n+      - key: DATABASE_URL\n+        fromDatabase:\n+          name: starlink-primary\n+          property: connectionString\n+      - key: TELEGRAM_BOT_TOKEN\n+        sync: false\n+      - key: NOTIFICATION_POLL_MS\n+        value: \"5000\"\n+      - key: NOTIFICATION_BATCH_SIZE\n+        value: \"10\"\n*** Add File: /workspaces/STARLINK/starlink-admin/backend/test/deployment-smoke.js\n+import assert from 'node:assert/strict';\n+\n+const apiUrl = process.env.DEPLOYED_API_URL;\n+const frontendUrl = process.env.DEPLOYED_FRONTEND_URL;\n+if (!apiUrl || !frontendUrl) {\n+  throw new Error('Set DEPLOYED_API_URL and DEPLOYED_FRONTEND_URL before running the deployed smoke test.');\n+}\n+\n+const api = new URL(apiUrl);\n+const frontend = new URL(frontendUrl);\n+assert.equal(api.protocol, 'https:', 'The deployed API must use HTTPS.');\n+assert.equal(frontend.protocol, 'https:', 'The deployed frontend must use HTTPS.');\n+\n+const health = await fetch(new URL('/health', api), {\n+  headers: { Origin: frontend.origin },\n+  signal: AbortSignal.timeout(15_000)\n+});\n+assert.equal(health.status, 200, 'The API health check must succeed.');\n+assert.equal(health.headers.get('access-control-allow-origin'), frontend.origin);\n+assert.deepEqual(await health.json(), { ok: true, databaseConfigured: true });\n+\n+const protectedResponse = await fetch(new URL('/api/admin/customers', api), {\n+  headers: { Origin: frontend.origin },\n+  signal: AbortSignal.timeout(15_000)\n+});\n+assert.equal(protectedResponse.status, 401, 'Admin routes must reject requests without a token.');\n+assert.equal(protectedResponse.headers.get('access-control-allow-origin'), frontend.origin);\n+\n+const deniedResponse = await fetch(new URL('/health', api), {\n+  headers: { Origin: 'https://not-the-configured-frontend.invalid' },\n+  signal: AbortSignal.timeout(15_000)\n+});\n+assert.equal(deniedResponse.status, 403, 'The API must reject an unconfigured browser origin.');\n+\n+console.log(`Deployment smoke test passed: ${frontend.origin} -> ${api.origin}`);\n*** Update File: /workspaces/STARLINK/starlink-admin/frontend/src/main.jsx\n@@\n-const API = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\\/$/, '');\n+const API = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : '')).replace(/\\/$/, '');\n@@\n async function api(path, options = {}) {\n+  if (!API) throw new Error('Set VITE_API_URL to the deployed Render API URL and rebuild the frontend.');\n   const response = await fetch(`${API}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(token() ? { authorization: `****** } : {}), ...(options.headers || {}) } });\n*** End Patch\n"
+Tool execution failed: Error: Failed to find expected lines in /workspaces/STARLINK/starlink-admin/frontend/src/main.jsx:
+async function api(path, options = {}) {
+  const response = await fetch(`${API}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(token() ? { authorization: `****** } : {}), ...(options.headers || {}) } });
+
+Read , lines 6 to 24
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/frontend/src/main.jsx",
+  "view_range": [
+    6,
+    24
+  ]
+}
+
+Read , lines 160 to 230
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    160,
+    230
+  ]
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/render.yaml"
+}
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm install
+
+"Apply Patch" failed
+Completed with input: "*** Begin Patch\n*** Update File: /workspaces/STARLINK/starlink-admin/frontend/src/main.jsx\n@@\n-const API = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\\/$/, '');\n+const API = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : '')).replace(/\\/$/, '');\n@@\n async function api(path, options = {}) {\n+  if (!API) throw new Error('Set VITE_API_URL to the deployed Render API URL and rebuild the frontend.');\n   const response = await fetch(`${API}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(token() ? { authorization: `****** } : {}), ...(options.headers || {}) } });\n*** End Patch\n"
+Tool execution failed: Failed to apply patch: Error: Failed to find expected lines in /workspaces/STARLINK/starlink-admin/frontend/src/main.jsx:
+async function api(path, options = {}) {
+  const response = await fetch(`${API}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(token() ? { authorization: `****** } : {}), ...(options.headers || {}) } });
+
+Edit 
+
+Edit 
+
+Edit 
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm test && npm run check
+Tool execution failed with exit code 1
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/frontend && npm run build
+
+Ran terminal command: git status --short --untracked-files=all && grep -RIn --exclude-dir=node_modules --exclude-dir=dist 'SUPABASE\|supabase' /workspaces/STARLINK/starlink-admin || true
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && node -e "import('./scripts/migrate.js').catch(e=>{console.log(e.message); process.exitCode=0})"
+
+"Apply Patch" failed
+Completed with input: "*** Begin Patch\n*** Delete File: /workspaces/STARLINK/starlink-admin/backend/test/deployment-smoke.js\n*** Add File: /workspaces/STARLINK/starlink-admin/backend/scripts/deployment-smoke.js\n+import assert from 'node:assert/strict';\n+\n+const apiUrl = process.env.DEPLOYED_API_URL;\n+const frontendUrl = process.env.DEPLOYED_FRONTEND_URL;\n+if (!apiUrl || !frontendUrl) {\n+  throw new Error('Set DEPLOYED_API_URL and DEPLOYED_FRONTEND_URL before running the deployed smoke test.');\n+}\n+\n+const api = new URL(apiUrl);\n+const frontend = new URL(frontendUrl);\n+assert.equal(api.protocol, 'https:', 'The deployed API must use HTTPS.');\n+assert.equal(frontend.protocol, 'https:', 'The deployed frontend must use HTTPS.');\n+\n+const health = await fetch(new URL('/health', api), {\n+  headers: { Origin: frontend.origin },\n+  signal: AbortSignal.timeout(15_000)\n+});\n+assert.equal(health.status, 200, 'The API health check must succeed.');\n+assert.equal(health.headers.get('access-control-allow-origin'), frontend.origin);\n+assert.deepEqual(await health.json(), { ok: true, databaseConfigured: true });\n+\n+const protectedResponse = await fetch(new URL('/api/admin/customers', api), {\n+  headers: { Origin: frontend.origin },\n+  signal: AbortSignal.timeout(15_000)\n+});\n+assert.equal(protectedResponse.status, 401, 'Admin routes must reject requests without a token.');\n+assert.equal(protectedResponse.headers.get('access-control-allow-origin'), frontend.origin);\n+\n+const deniedResponse = await fetch(new URL('/health', api), {\n+  headers: { Origin: 'https://not-the-configured-frontend.invalid' },\n+  signal: AbortSignal.timeout(15_000)\n+});\n+assert.equal(deniedResponse.status, 403, 'The API must reject an unconfigured browser origin.');\n+\n+console.log(`Deployment smoke test passed: ${frontend.origin} -> ${api.origin}`);\n*** Update File: /workspaces/STARLINK/starlink-admin/backend/package.json\n@@\n-    \"smoke:deployment\": \"node test/deployment-smoke.js\"\n+    \"smoke:deployment\": \"node scripts/deployment-smoke.js\"\n*** Update File: /workspaces/STARLINK/starlink-admin/backend/migrations/001_initial.sql\n@@\n   status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','sent','failed')),\n   attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),\n+  failure_streak integer NOT NULL DEFAULT 0 CHECK (failure_streak >= 0),\n*** Update File: /workspaces/STARLINK/starlink-admin/backend/src/worker.js\n@@\n async function claimNotifications() {\n-  const { rows } = await pool.query(\n-    `WITH picked AS (\n-       SELECT id FROM notifications\n-       WHERE (status='queued' AND (next_attempt_at IS NULL OR next_attempt_at<=now()))\n-          OR (status='processing' AND locked_at<now()-interval '5 minutes' AND attempts<$1)\n-       ORDER BY created_at ASC\n-       LIMIT $2\n-       FOR UPDATE SKIP LOCKED\n-     )\n-     UPDATE notifications n\n-     SET status='processing',attempts=n.attempts+1,locked_at=now()\n-     FROM picked\n-     WHERE n.id=picked.id\n-     RETURNING n.*`,\n-    [maxAttempts, batchSize]\n-  );\n-  return rows;\n+  const client = await pool.connect();\n+  try {\n+    await client.query('BEGIN');\n+    const expired = await client.query(\n+      `UPDATE notifications\n+       SET status='failed',locked_at=NULL,next_attempt_at=NULL,\n+           last_error='Worker lease expired after the final delivery attempt; delivery outcome is unknown.'\n+       WHERE status='processing' AND locked_at<now()-interval '5 minutes' AND failure_streak >= $1\n+       RETURNING id,attempts`,\n+      [maxAttempts]\n+    );\n+    for (const notification of expired.rows) {\n+      await client.query(\n+        `INSERT INTO notification_attempts(notification_id,attempt_no,status,safe_error)\n+         VALUES($1,$2,'failed',$3) ON CONFLICT (notification_id,attempt_no) DO NOTHING`,\n+        [notification.id, notification.attempts, 'Worker lease expired after the final delivery attempt; delivery outcome is unknown.']\n+      );\n+    }\n+    const { rows } = await client.query(\n+      `WITH picked AS (\n+         SELECT id FROM notifications\n+         WHERE (status='queued' AND (next_attempt_at IS NULL OR next_attempt_at<=now()))\n+            OR (status='processing' AND locked_at<now()-interval '5 minutes' AND failure_streak<$1)\n+         ORDER BY created_at ASC\n+         LIMIT $2\n+         FOR UPDATE SKIP LOCKED\n+       )\n+       UPDATE notifications n\n+       SET status='processing',attempts=n.attempts+1,\n+           failure_streak=n.failure_streak+1,locked_at=now()\n+       FROM picked\n+       WHERE n.id=picked.id\n+       RETURNING n.*`,\n+      [maxAttempts, batchSize]\n+    );\n+    await client.query('COMMIT');\n+    return rows;\n+  } catch (error) {\n+    await client.query('ROLLBACK');\n+    throw error;\n+  } finally {\n+    client.release();\n+  }\n }\n@@\n async function recordAttempt(job, status, httpStatus, errorText) {\n-  const terminal = status === 'failed' && job.attempts >= maxAttempts;\n+  const terminal = status === 'failed' && job.failure_streak >= maxAttempts;\n   const retryDelaySeconds = Math.min(3600, 2 ** Math.min(job.attempts, 10));\n@@\n       `UPDATE notifications\n        SET status=$2,last_error=$3,sent_at=CASE WHEN $2='sent' THEN now() ELSE NULL END,\n            next_attempt_at=CASE WHEN $2='failed' AND NOT $4 THEN now()+($5 * interval '1 second') ELSE NULL END,\n-           locked_at=NULL\n+           failure_streak=CASE WHEN $2='sent' THEN 0 ELSE failure_streak END,locked_at=NULL\n@@\n     `UPDATE notifications SET status='queued',next_attempt_at=now(),last_error=NULL,locked_at=NULL\n+       ,failure_streak=0\n      WHERE id=$1 AND status='failed' RETURNING *`,\n*** End Patch\n"
+Tool execution failed: Error: Failed to find expected lines in /workspaces/STARLINK/starlink-admin/backend/src/worker.js:
+    `UPDATE notifications SET status='queued',next_attempt_at=now(),last_error=NULL,locked_at=NULL
+     WHERE id=$1 AND status='failed' RETURNING *`,
+
+Read , lines 1 to 120
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/worker.js",
+  "view_range": [
+    1,
+    120
+  ]
+}
+
+Search for `UPDATE notifications SET status='queued'|terminal =|claimNotifications|failur...`
+
+Search for `API =|async function api|Set VITE_API_URL`
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/package.json"
+}
+
+Read , lines 72 to 108
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/migrations/001_initial.sql",
+  "view_range": [
+    72,
+    108
+  ]
+}
+
+Edit , 
+
+Search for `failure_streak|attempts integer`
+
+Search for `SUPABASE|Supabase|RUN_NOTIFICATION_WORKER|notification queue`
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/scripts/deployment-smoke.js"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/scripts/migrate.js"
+}
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/.env.example"
+}
+
+Search for `notification_attempts|\.notifications\?|customers\?\.|visitor_links\?\.|order...`
+
+Read , lines 470 to 560
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/index.js",
+  "view_range": [
+    470,
+    560
+  ]
+}
+
+Read , lines 1 to 205
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/src/worker.js",
+  "view_range": [
+    1,
+    205
+  ]
+}
+
+Read , lines 1 to 30
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/backend/package-lock.json",
+  "view_range": [
+    1,
+    30
+  ]
+}
+
+Read , lines 1 to 100
+Completed with input: {
+  "path": "/workspaces/STARLINK/starlink-admin/README.md",
+  "view_range": [
+    1,
+    100
+  ]
+}
+
+Edit , 
+
+Edit 
+
+The PostgreSQL API, schema/migration runner, and isolated queue worker are now in place. I also added a live deployment smoke command; it intentionally requires actual deployed HTTPS URLs, so I’m running the local unit/build checks first and will report live-hosting/Telegram/payment checks as incomplete where credentials or deployed services are unavailable.
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm install --package-lock-only && npm test && npm run check
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/frontend && npm run build
+
+Ran terminal command: command -v psql || true; command -v postgres || true; command -v yq || true; cd /workspaces/STARLINK/starlink-admin/backend && node -e "import('./scripts/deployment-smoke.js').catch(e=>{ if (!e.message.includes('Set DEPLOYED_API_URL')) process.exitCode=1; else console.log(e.message) })"
+
+Edit 
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm test && npm run check
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/frontend && npm run build
+
+Search for `SUPABASE|supabase|ECOCASH_WEBHOOK_SECRET|RUN_NOTIFICATION_WORKER`
+
+Ran terminal command: git -C /workspaces/STARLINK status --short --untracked-files=all
+
+Edit , , 
+
+Edit 
+
+Edit 
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm test && npm run check
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/frontend && npm run build
+
+Ran terminal command: python -c "import yaml; yaml.safe_load(open('/workspaces/STARLINK/render.yaml')); print('Render blueprint YAML parsed successfully')"
+
+Search for `SUPABASE|supabase|ECOCASH_WEBHOOK_SECRET|RUN_NOTIFICATION_WORKER`
+
+Ran terminal command: git -C /workspaces/STARLINK status --short --untracked-files=all
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/README.md"
+}
+
+Edit 
+
+"Apply Patch" failed
+Completed with input: "*** Begin Patch\n*** Update File: /workspaces/STARLINK/starlink-admin/backend/src/worker.js\n@@\n const { pool } = await import('./database.js');\n*** End Patch\n"
+Tool execution failed: Failed to apply patch: Error: Failed to find expected lines in /workspaces/STARLINK/starlink-admin/backend/src/worker.js:
+const { pool } = await import('./database.js');
+
+Edit 
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm test && npm run check
+
+Ran terminal command: git -C /workspaces/STARLINK status --short --untracked-files=all && git -C /workspaces/STARLINK diff --check
+
+Read 
+Completed with input: {
+  "path": "/workspaces/STARLINK/render.yaml"
+}
+
+Search for `SUPABASE|supabase|EcoCash|pending|VITE_API_URL|DEPLOYED_API_URL`
+
+Ran terminal command: unzip -l /workspaces/STARLINK/starlink-admin-starter.zip | sed -n '1,100p'
+
+Edit 
+
+Edit 
+
+Edit 
+
+Ran terminal command: cd /workspaces/STARLINK/starlink-admin/backend && npm test && npm run check
+
+Ran terminal command: python -c "import yaml; yaml.safe_load(open('/workspaces/STARLINK/render.yaml')); print('Render blueprint YAML parsed successfully')" && git -C /workspaces/STARLINK diff --check
+
+Search for `failure_streak|Worker lease expired|DATABASE_URL|VITE_API_URL|preDeployCommand`
+
+Ran terminal command: git -C /workspaces/STARLINK status --short --untracked-files=all
+
+Implemented the production deployment foundation:
+
+- Replaced the Supabase backend with direct Render PostgreSQL access, a repeatable migration runner, and transactional order creation plus notification enqueueing. See `the migration` and `migration runner`.
+- Added a separate Render worker with locked job claims, delivery-attempt records, exponential retries, and recovery for jobs left processing after a crash: `worker`.
+- Added a Render Blueprint for PostgreSQL, the API, and the worker: `render.yaml`. The frontend now requires `VITE_API_URL` in production and has a local-development fallback: `main.jsx`.
+- Added restricted-origin CORS, database-backed health checks, admin authentication, and request validation in `index.js`.
+- Documented deployment, environment variables, Telegram setup, custom domains, and payment limitations in `the deployment README`; added a repository entry point in `README.md`. The live communication check is `deployment-smoke.js`.
+
+**Verification:** 9 backend tests passed, backend syntax checks passed, the Vercel frontend production build passed, and the Render Blueprint YAML parsed successfully. The tests include a local CORS check.
+
+**Not verified or complete:** No hosted deployment, database connection, custom domain, or live Telegram delivery was performed. Run the documented smoke test with real Vercel and Render URLs after deployment. The provided project and archive are starters, not the original visitor website; merge and regression-test the original site before replacing it. EcoCash processing is not implemented, and orders remain `pending`. The README lists the authorized merchant/API details needed before production payment support can be claimed.
