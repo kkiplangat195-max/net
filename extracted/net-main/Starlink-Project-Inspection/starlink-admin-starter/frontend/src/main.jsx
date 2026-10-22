@@ -1893,7 +1893,14 @@ function submitPayment(event) {
         <X size={18} />
       </button>
 
-      <h2 id="visitor-order-title">Submit order</h2>
+      <div className="ecocash-heading">
+  <div className="ecocash-logo">
+    <span>Eco</span><span>Cash</span>
+  </div>
+  <p>Payment verification</p>
+</div>
+
+<h2 id="visitor-order-title">Submit order</h2>
       <p>Plan: {bundle?.name}</p>
       <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
 

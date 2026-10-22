@@ -259,3 +259,38 @@
   font-size: 28px;
   cursor: pointer;
 }
+
+
+.ecocash-heading {
+  margin: 0 0 22px;
+  padding-top: 2px;
+}
+
+.ecocash-logo {
+  font-family: Manrope, sans-serif;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1.2;
+}
+
+.ecocash-logo span:first-child {
+  color: #0870ce;
+}
+
+.ecocash-logo span:last-child {
+  color: #e52d32;
+}
+
+.ecocash-heading p {
+  margin: 9px 0 0;
+  color: #526b8e;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.payment-popup > h2 {
+  color: #526b8e;
+  font-size: 20px;
+  text-align: left;
+}
