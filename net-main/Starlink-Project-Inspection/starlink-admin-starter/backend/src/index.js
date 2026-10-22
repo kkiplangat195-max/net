@@ -50,7 +50,7 @@ const money = (n) => Math.round(Number(n) * 100) / 100;
 const notificationPreferencesSchema = z.object({ newOrder: z.boolean().default(true), phone: z.boolean().default(false), amount: z.boolean().default(true) }).strict();
 const bundleSchema = z.object({ id: z.string().min(1), name: z.string().min(1).max(80), validity: z.string().min(1).max(80), price: z.number().finite().min(0).max(10000), currency: z.literal('USD'), description: z.string().max(300).optional().default(''), enabled: z.boolean().default(true), promotionalLabel: z.string().max(80).optional().default('') });
 const customerSchema = z.object({ name: z.string().trim().min(1).max(120), notes: z.string().max(2000).optional().default(''), telegramChatId: z.string().trim().max(100).optional().default(''), notificationsEnabled: z.boolean().optional().default(false), notificationPreferences: notificationPreferencesSchema.optional().default({}) });
-paymentInstructions: z.string().max(2000).optional().default(''),
+const linkSchema = z.object({ customerId: z.string().uuid(), name: z.string().trim().min(1).max(120), bundles: z.array(bundleSchema).min(1), formConfig: z.record(z.string(), z.unknown()).optional().default({ phoneRequired: true }), paymentInstructions: z.string().max(2000).optional().default(''), telegramChatId: z.string().trim().max(100).optional().default(''), notificationsEnabled: z.boolean().optional().default(false), notificationPreferences: notificationPreferencesSchema.optional().default({}) });
 
 
 app.get('/health/live', (_req, res) => {

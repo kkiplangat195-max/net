@@ -1508,9 +1508,7 @@ function LinkModal({
   const [notify, setNotify] = useState(false);
   const [includePhone, setIncludePhone] = useState(false);
   const [includeAmount, setIncludeAmount] = useState(true);
-  const [instructions, setInstructions] = useState(
-    "Payment is pending. Follow only verified EcoCash instructions provided by the administrator. This website does not collect EcoCash PINs or one-time codes.",
-  );
+  const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!customerId && customers[0]) setCustomerId(customers[0].id);
@@ -1804,7 +1802,6 @@ function submitPayment(event) {
               <div><dt>Payment status</dt><dd>{result.order.payment_status || "pending"}</dd></div>
             </dl>
             <div className="pending-box">
-              Payment is not confirmed
               <p>{result.paymentInstructions || link.paymentInstructions}</p>
             </div>
             <p>
