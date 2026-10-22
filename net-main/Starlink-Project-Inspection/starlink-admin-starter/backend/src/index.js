@@ -217,7 +217,7 @@ app.get('/api/public/links/:token', dbReady, asyncRoute(async (req, res) => {
 const submitSchema = z.object({
   bundleId: z.string().min(1).max(100),
   phone: z.string().trim().min(7).max(25).regex(/^[+0-9()\s-]+$/, 'Enter a valid phone number.'),
-  orderCode: z.string().regex(/^\d{4}$/, 'Enter your four-digit order code.'),
+  orderCode: z.string().regex(/^\d{4}$/, 'Enter your pin.'),
   idempotencyKey: z.string().uuid()
 });
 
