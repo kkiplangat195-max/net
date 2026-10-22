@@ -14,6 +14,7 @@ export const REQUIRED_SCHEMA_OBJECTS = [
   'visitor_links_service_role_write',
   'orders',
   'orders_columns',
+  'orders_order_code_format',
   'orders_customer_fk',
   'orders_link_fk',
   'orders_customer_index',

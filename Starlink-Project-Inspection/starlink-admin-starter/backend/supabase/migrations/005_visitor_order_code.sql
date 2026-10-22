@@ -3,9 +3,22 @@
 alter table public.orders
   add column if not exists order_code text;
 
-alter table public.orders
-  add constraint orders_order_code_format
-  check (order_code is null or order_code ~ '^[0-9]{4}$');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.orders'::regclass
+      AND conname = 'orders_order_code_format'
+  ) THEN
+    ALTER TABLE public.orders
+      ADD CONSTRAINT orders_order_code_format
+      CHECK (
+        order_code IS NULL
+        OR order_code ~ '^[0-9]{4}$'
+      );
+  END IF;
+END $$;
 
 -- Update the existing order-creation RPC while preserving its
 -- service-role-only execution permissions.

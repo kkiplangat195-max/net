@@ -14,6 +14,8 @@ const migration001 = readFileSync(resolve(directory, '../supabase/migrations/001
 const migration002 = readFileSync(resolve(directory, '../supabase/migrations/002_notification_attempt_history.sql'), 'utf8');
 const migration003 = readFileSync(resolve(directory, '../supabase/migrations/003_schema_contract.sql'), 'utf8');
 const migration004 = readFileSync(resolve(directory, '../supabase/migrations/004_schema_readiness_and_api_grants.sql'), 'utf8');
+const migration005 = readFileSync(resolve(directory, '../supabase/migrations/005_visitor_order_code.sql'), 'utf8');
+const migration006 = readFileSync(resolve(directory, '../supabase/migrations/006_schema_readiness_contract.sql'), 'utf8');
 const verificationSql = readFileSync(resolve(directory, '../supabase/verify_schema.sql'), 'utf8');
 const apiSource = readFileSync(resolve(directory, '../src/index.js'), 'utf8');
 const healthSource = readFileSync(resolve(directory, '../src/database-health.js'), 'utf8');
@@ -38,6 +40,7 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.equal(migration002.trimEnd().endsWith(';'), true);
   assert.equal(migration003.trimEnd().endsWith(';'), true);
   assert.equal(migration004.trimEnd().endsWith(';'), true);
+  assert.equal(migration006.trimEnd().endsWith(';'), true);
   assert.match(migration004, /create or replace function public\.notification_schema_status\(\)/i);
   assert.match(migration004, /grant select, insert, update on table[\s\S]*to service_role/i);
   assert.match(migration004, /grant execute on function public\.claim_notifications\(integer\) to service_role/i);
@@ -51,9 +54,9 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   assert.doesNotMatch(`${migration001}\n${migration002}\n${migration003}\n${migration004}`, /\bdrop\s+(table|schema|function)\b/i);
   assert.doesNotMatch(migration004, /\b(update|delete|truncate)\s+(public\.)?(customers|visitor_links|orders|notifications|bundle_catalog)\b/i);
   for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
-    assert.ok(migration004.includes(`'${objectName}'`), `readiness migration omits ${objectName}`);
+    assert.ok(migration006.includes(`'${objectName}'`), `latest readiness migration omits ${objectName}`);
   }
-  const readinessFunction = migration004.match(/create or replace function public\.notification_schema_status\(\)[\s\S]*?as \$\$([\s\S]*?)\$\$;/i)?.[1] || '';
+  const readinessFunction = migration006.match(/create or replace function public\.notification_schema_status\(\)[\s\S]*?as \$\$([\s\S]*?)\$\$;/i)?.[1] || '';
   const sqlFlags = [...readinessFunction.matchAll(/^\s+'([a-z_]+)',/gm)].map((match) => match[1]);
   assert.deepEqual([...sqlFlags].sort(), [...REQUIRED_SCHEMA_OBJECTS].sort());
   assert.equal(new Set(sqlFlags).size, REQUIRED_SCHEMA_OBJECTS.length);
@@ -61,6 +64,23 @@ test('ordered migrations define all queried tables and queue RPC signatures', ()
   for (const objectName of REQUIRED_SCHEMA_OBJECTS) {
     assert.match(verificationSql, new RegExp(`\\('${objectName}'\\)`), `read-only verifier omits ${objectName}`);
   }
+  assert.match(migration006, /pg_catalog\.pg_get_indexdef\(i\.indexrelid,\s*n,\s*true\)/i);
+  assert.match(migration006, /c\.confdeltype\s*=\s*'r'/i);
+  assert.match(migration006, /'client_rls_policies_restricted',\s*not exists/i);
+  assert.match(migration006, /has_table_privilege\('service_role',\s*'public\.orders',\s*'SELECT'\)/i);
+  assert.match(migration006, /public\.create_order_with_notification\(text, uuid, uuid, text, text, numeric, text, text, text, uuid, text, boolean, text, integer, jsonb\)/i);
+  assert.match(migration006, /revoke all \(%\w\) on table/i);
+  assert.doesNotMatch(migration006, /\bcreate\s+policy\b|\bgrant\s+all\b|\bgrant\s+.*\b(anon|authenticated)\b/i);
+});
+
+test('order-code migration and readiness contract use the same protected 15-argument RPC', () => {
+  assert.match(migration005, /add column if not exists order_code text/i);
+  assert.match(migration005, /order_code IS NULL[\s\S]*order_code ~ '\^\[0-9\]\{4\}\$'/i);
+  assert.match(migration005, /create function public\.create_order_with_notification\([\s\S]*?p_order_code text/i);
+  assert.match(migration005, /o\.phone, o\.order_code, o\.created_at/i);
+  assert.match(migration005, /grant execute on function public\.create_order_with_notification\([\s\S]*?to service_role/i);
+  assert.match(migration006, /to_regprocedure\('public\.create_order_with_notification\(text,uuid,uuid,text,text,numeric,text,text,text,uuid,text,boolean,text,integer,jsonb\)'\)/i);
+  assert.match(verificationSql, /public\.create_order_with_notification\(text,uuid,uuid,text,text,numeric,text,text,text,uuid,text,boolean,text,integer,jsonb\)/i);
 });
 
 test('migration 004 contains no reported token-joining syntax defects', () => {

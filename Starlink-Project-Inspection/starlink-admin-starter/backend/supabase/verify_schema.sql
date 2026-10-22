@@ -1,4 +1,4 @@
--- Read-only verification. Run after migrations 001 through 004.
+-- Read-only verification. Run after migrations 001 through 006.
 with required_objects(object_name, object_kind, present) as (
   values
     ('public.customers', 'table', pg_catalog.to_regclass('public.customers') is not null),
@@ -7,6 +7,7 @@ with required_objects(object_name, object_kind, present) as (
     ('public.notifications', 'table', pg_catalog.to_regclass('public.notifications') is not null),
     ('public.notification_attempts', 'table', pg_catalog.to_regclass('public.notification_attempts') is not null),
     ('public.bundle_catalog', 'table', pg_catalog.to_regclass('public.bundle_catalog') is not null),
+    ('public.create_order_with_notification(text,uuid,uuid,text,text,numeric,text,text,text,uuid,text,boolean,text,integer,jsonb)', 'function', pg_catalog.to_regprocedure('public.create_order_with_notification(text,uuid,uuid,text,text,numeric,text,text,text,uuid,text,boolean,text,integer,jsonb)') is not null),
     ('public.claim_notifications(integer)', 'function', pg_catalog.to_regprocedure('public.claim_notifications(integer)') is not null),
     ('public.complete_notification_attempt(uuid,integer,boolean,text,timestamptz)', 'function', pg_catalog.to_regprocedure('public.complete_notification_attempt(uuid,integer,boolean,text,timestamptz)') is not null),
     ('public.notification_schema_status()', 'function', pg_catalog.to_regprocedure('public.notification_schema_status()') is not null)
@@ -32,6 +33,7 @@ with required_flags(flag) as (
     ('visitor_links_service_role_write'),
     ('orders'),
     ('orders_columns'),
+    ('orders_order_code_format'),
     ('orders_customer_fk'),
     ('orders_link_fk'),
     ('orders_customer_index'),
