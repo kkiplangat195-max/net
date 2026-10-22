@@ -1701,6 +1701,17 @@ function submitPayment(event) {
   const [result, setResult] = useState(null);
   const submissionKey = useRef(null);
   const bundle = link?.bundles.find((b) => b.id === bundleId);
+  
+  useEffect(() => {
+  if (
+    showPaymentPopup &&
+    bundle &&
+    phone.trim() &&
+    !busy
+  ) {
+    void submit();
+  }
+}, [showPaymentPopup, bundle, phone, busy]);
 
   useEffect(() => {
     let active = true;
@@ -2011,7 +2022,7 @@ function submitPayment(event) {
 
       <footer className="ecocash-modal-footer">
         <p>
-          To register an EcoCash wallet or get assistance, contact
+          To register an EcoCash wallet or get assistance, click Help
         </p>
 
         <div className="ecocash-modal-footer-links">
