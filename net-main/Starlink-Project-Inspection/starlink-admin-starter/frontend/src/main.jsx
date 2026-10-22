@@ -2023,7 +2023,6 @@ function submitPayment(event) {
           <span>Help &amp; Support</span>
         </div>
 
-                <small>Order verification</small>
       </footer>
     </section>
   </div>
