@@ -57,13 +57,15 @@ test('customer preferences cap per-link notification fields and phone sharing is
 
 test('order notification fields remain independent and never contain an authentication PIN', () => {
   const job = {
-    order_ref: 'ORD-123', bundle_name: '15GB Data', amount: 0.99,
+    order_ref: 'ORD-123', order_code: '9876', bundle_name: '15GB Data', amount: 0.99,
     payment_status: 'pending', phone: '+263771234567', order_created_at: '2026-10-21T00:00:00Z',
     pin: '1234'
   };
   const minimal = formatOrderNotification(job, { phone: false, amount: false, bundleValidity: '7-Day Plan' });
   assert.doesNotMatch(minimal, /Phone:|Amount:|\b1234\b/);
   assert.match(minimal, /Validity: 7-Day Plan/);
+  assert.match(minimal, /Visitor Order Code: 9876/);
+  assert.doesNotMatch(minimal, /\b1234\b/);
   const phoneOnly = formatOrderNotification(job, { phone: true, amount: false });
   assert.match(phoneOnly, /Phone: \+263771234567/);
   assert.doesNotMatch(phoneOnly, /Amount:|\b1234\b/);

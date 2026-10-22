@@ -84,12 +84,12 @@ test('schema readiness column counts and lists match the table definitions', () 
   const expected = {
     customers: ['id', 'name', 'notes', 'telegram_chat_id', 'notifications_enabled', 'notification_preferences', 'created_at', 'updated_at'],
     visitor_links: ['id', 'customer_id', 'name', 'token', 'token_hash', 'status', 'bundles', 'form_config', 'payment_instructions', 'telegram_chat_id', 'notifications_enabled', 'notification_preferences', 'config_version', 'created_at', 'updated_at'],
-    orders: ['id', 'order_ref', 'idempotency_key', 'customer_id', 'link_id', 'bundle_id', 'bundle_name', 'amount', 'currency', 'phone', 'payment_status', 'payment_provider_reference', 'created_at'],
+    orders: ['id', 'order_ref', 'idempotency_key', 'customer_id', 'link_id', 'bundle_id', 'bundle_name', 'amount', 'currency', 'phone', 'order_code', 'payment_status', 'payment_provider_reference', 'created_at'],
     notifications: ['id', 'order_id', 'customer_id', 'link_id', 'intended_chat_id', 'event_type', 'config_version', 'message_fields', 'status', 'attempts', 'next_attempt_at', 'last_error', 'created_at', 'sent_at', 'processing_started_at'],
     notification_attempts: ['id', 'notification_id', 'attempt_number', 'status', 'error', 'attempted_at'],
     bundle_catalog: ['bundle_id', 'name', 'validity', 'price', 'currency', 'description', 'enabled', 'promotional_label', 'sort_order', 'updated_at']
   };
-  const counts = { customers: 8, visitor_links: 15, orders: 13, notifications: 15, notification_attempts: 6, bundle_catalog: 10 };
+  const counts = { customers: 8, visitor_links: 15, orders: 14, notifications: 15, notification_attempts: 6, bundle_catalog: 10 };
   for (const [table, columns] of Object.entries(expected)) {
     assert.equal(columns.length, counts[table]);
     const marker = `'${table}_columns'`;

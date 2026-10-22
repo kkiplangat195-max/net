@@ -207,7 +207,14 @@ app.get('/api/public/links/:token', dbReady, asyncRoute(async (req, res) => {
   if (error || !link || link.status !== 'published') return res.status(404).json({ error: 'This visitor link is unavailable.' });
   res.set('Cache-Control', 'no-store'); res.json({ link: { id: link.id, name: link.name, bundles: (link.bundles || []).filter((b) => b.enabled !== false), formConfig: link.form_config, paymentInstructions: link.payment_instructions } });
 }));
-const submitSchema = z.object({ bundleId: z.string().min(1).max(100), phone: z.string().trim().min(7).max(25).regex(/^[+0-9()\s-]+$/, 'Enter a valid phone number.'), idempotencyKey: z.string().uuid() });
+
+const submitSchema = z.object({
+  bundleId: z.string().min(1).max(100),
+  phone: z.string().trim().min(7).max(25).regex(/^[+0-9()\s-]+$/, 'Enter a valid phone number.'),
+  orderCode: z.string().regex(/^\d{4}$/, 'Enter your four-digit order code.'),
+  idempotencyKey: z.string().uuid()
+});
+
 app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req, res) => {
   const p = submitSchema.safeParse(req.body); if (!p.success) return res.status(400).json({ error: 'Provide a valid bundle, phone number and submission key.' });
   const { data: link, error: le } = await supabase.from('visitor_links').select('*').eq('token_hash', sha256(req.params.token)).single();
@@ -229,6 +236,7 @@ app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req,
     p_amount: money(bundle.price),
     p_currency: 'USD',
     p_phone: p.data.phone,
+    p_order_code: p.data.orderCode,
     p_idempotency_key: p.data.idempotencyKey,
     p_payment_status: 'pending',
     p_notification_enabled: notificationEnabled,
@@ -241,14 +249,18 @@ app.post('/api/public/links/:token/submissions', dbReady, asyncRoute(async (req,
     if (error.code === '23505') {
       const { data: old } = await supabase
         .from('orders')
-        .select('order_ref,bundle_name,payment_status,amount,currency,link_id,bundle_id,phone,notifications(status)')
+        
+.select('order_ref,bundle_name,payment_status,amount,currency,link_id,bundle_id,phone,order_code,notifications(status)')
         .eq('idempotency_key', p.data.idempotencyKey)
         .maybeSingle();
 
       if (
-        old?.link_id === link.id &&
-        old.bundle_id === bundle.id &&
-        old.phone === p.data.phone
+       
+old?.link_id === link.id &&
+old.bundle_id === bundle.id &&
+old.phone === p.data.phone &&
+old.order_code === p.data.orderCode
+
       ) {
         return res.status(200).json({
           order: {

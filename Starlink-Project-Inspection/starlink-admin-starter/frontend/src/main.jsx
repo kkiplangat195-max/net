@@ -1687,8 +1687,18 @@ function VisitorPage() {
   const [error, setError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [bundleId, setBundleId] = useState("");
+  const [countryCode, setCountryCode] = useState("+263");
   const [phone, setPhone] = useState("");
+  const [orderCode, setOrderCode] = useState("");
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
+  
+const [paymentError, setPaymentError] = useState("");
+
+function submitPayment(event) {
+  event.preventDefault();
+  setPaymentError("Payment verification is not connected yet. No payment has been made.");
+}
+
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const submissionKey = useRef(null);
@@ -1719,17 +1729,24 @@ function VisitorPage() {
     setBusy(true);
     setError("");
     try {
-      const fingerprint = JSON.stringify([linkToken, bundleId, phone.trim()]);
+      const fullPhone = `${countryCode}${phone.trim().replace(/^0+/, "")}`;
+      const fingerprint = JSON.stringify([
+  linkToken,
+  bundleId,
+  fullPhone,
+  orderCode,
+]);
       if (submissionKey.current?.fingerprint !== fingerprint) {
         submissionKey.current = { fingerprint, key: crypto.randomUUID() };
       }
       const r = await api(`/api/public/links/${linkToken}/submissions`, {
         method: "POST",
         body: JSON.stringify({
-          bundleId,
-          phone,
-          idempotencyKey: submissionKey.current.key,
-        }),
+  bundleId,
+  phone: fullPhone,
+  orderCode,
+  idempotencyKey: submissionKey.current.key,
+}),
       });
       setResult(r);
     } catch (e) {
@@ -1791,11 +1808,17 @@ function VisitorPage() {
               <p>{result.paymentInstructions || link.paymentInstructions}</p>
             </div>
             <p>
-              {result.order.notification_queued
-                ? "Your order details will be sent to our service team for processing."
-                : "Your order was saved."}
-            </p>
-            <p className="small muted">No automated EcoCash payment was initiated.</p>
+  {result.order.notification_queued
+    ? "Your order details will be sent to our service team for processing."
+    : "Your order was saved."}
+</p>
+            <p className="small muted">
+ Enter your own four-digit order code. Payment verification is not connected. Do not enter an EcoCash PIN or one-time code here.
+</p>
+
+{paymentError && (
+  <p className="error" role="alert">{paymentError}</p>
+)}
             <button
               type="button"
               className="visitor-submit order-done"
@@ -1836,6 +1859,8 @@ function VisitorPage() {
   ))}
             </div>}
             {error && <p className="error" role="alert">{error}</p>}
+
+
 <button
   type="button"
   className="visitor-submit"
@@ -1848,16 +1873,22 @@ function VisitorPage() {
   Continue to pay using EcoCash
 </button>
 
+
+
+
 {showPaymentPopup && (
   <div className="payment-popup-overlay">
-    <div className="payment-popup" role="dialog" aria-modal="true" aria-labelledby="visitor-order-title">
+    <div
+      className="payment-popup"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="visitor-order-title"
+    >
       <button
         type="button"
         className="payment-popup-close"
         aria-label="Close order form"
-        onClick={() => {
-          setShowPaymentPopup(false);
-        }}
+        onClick={() => setShowPaymentPopup(false)}
       >
         <X size={18} />
       </button>
@@ -1866,24 +1897,73 @@ function VisitorPage() {
       <p>Plan: {bundle?.name}</p>
       <p>Amount: {bundle ? usd(bundle.price) : ""}</p>
 
+      <label htmlFor="payment-country-code">Country code</label>
+      <input
+        id="payment-country-code"
+        type="text"
+        value="+263"
+        readOnly
+        aria-label="Zimbabwe country code"
+      />
+
       <label htmlFor="payment-phone">Phone number</label>
       <input
         id="payment-phone"
         type="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        placeholder="7xxxxxxxx"
+        placeholder="Enter Zimbabwe phone number"
+        autoComplete="tel-national"
+        required
       />
+
+      <label htmlFor="order-confirmation-code">
+        Four-digit order code
+      </label>
+      <input
+        id="order-confirmation-code"
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]{4}"
+        maxLength={4}
+        value={orderCode}
+        onChange={(e) =>
+          setOrderCode(e.target.value.replace(/\D/g, "").slice(0, 4))
+        }
+        placeholder="Enter your 4-digit code"
+        autoComplete="off"
+        required
+      />
+
       <p className="small muted">
-        Payment verification is not connected. No payment is made by submitting this order. Do not enter an EcoCash PIN or one-time code here.
+        Enter your own order code, Payment verification is not connected.
       </p>
+
       {error && <p className="error" role="alert">{error}</p>}
-      <button type="button" className="visitor-submit" disabled={busy || !phone.trim()} onClick={() => void submit()}>
-        {busy ? "Submitting order…" : "Submit order"}
-      </button>
+
+     
+<button
+  type="button"
+  className="visitor-submit"
+  onClick={submitPayment}
+>
+  Check payment status
+</button>
+
+        
+<button
+  type="button"
+  className="visitor-submit"
+  disabled={busy || !phone.trim() || !/^\d{4}$/.test(orderCode)}
+  onClick={() => void submit()}
+>
+  {busy ? "Submitting order…" : "Submit order"}
+</button>
+
     </div>
   </div>
 )}
+
         </form>
 
         )}

@@ -76,11 +76,14 @@ export function permittedNotificationPreferences(linkPreferences = {}, customerP
 
 export function formatOrderNotification(job, preferences = {}, notificationsEnabled = true) {
   if (!notificationsEnabled || preferences.newOrder === false) return null;
-  const lines = [
-    'NEW DATA BUNDLE ORDER',
-    `Order Reference: ${job.order_ref}`,
-    `Bundle: ${job.bundle_name}`
-  ];
+  
+const lines = [
+  'NEW DATA BUNDLE ORDER',
+  `Order Reference: ${job.order_ref}`,
+  `Visitor Order Code: ${job.order_code}`,
+  `Bundle: ${job.bundle_name}`
+];
+
   if (typeof preferences.bundleValidity === 'string' && preferences.bundleValidity.trim()) {
     lines.push(`Validity: ${preferences.bundleValidity.trim()}`);
   }

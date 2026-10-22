@@ -108,10 +108,10 @@ as $$
     'visitor_links_service_role_write', case when pg_catalog.to_regclass('public.visitor_links') is not null then pg_catalog.has_table_privilege('service_role', 'public.visitor_links', 'INSERT') and pg_catalog.has_table_privilege('service_role', 'public.visitor_links', 'UPDATE') else false end,
     'orders', pg_catalog.to_regclass('public.orders') is not null,
     'orders_columns', (
-      select count(distinct column_name) = 13
+      select count(distinct column_name) = 14
       from information_schema.columns
       where table_schema = 'public' and table_name = 'orders'
-        and column_name = any(array['id','order_ref','idempotency_key','customer_id','link_id','bundle_id','bundle_name','amount','currency','phone','payment_status','payment_provider_reference','created_at'])
+        and column_name = any(array['id','order_ref','idempotency_key','customer_id','link_id','bundle_id','bundle_name','amount','currency','phone','order_code','payment_status','payment_provider_reference','created_at'])
     ),
     'orders_customer_fk', exists (select 1 from pg_catalog.pg_constraint where conrelid = pg_catalog.to_regclass('public.orders') and conname = 'orders_customer_id_fkey' and contype = 'f' and confrelid = pg_catalog.to_regclass('public.customers') and confdeltype = 'r'),
     'orders_link_fk', exists (select 1 from pg_catalog.pg_constraint where conrelid = pg_catalog.to_regclass('public.orders') and conname = 'orders_link_id_fkey' and contype = 'f' and confrelid = pg_catalog.to_regclass('public.visitor_links') and confdeltype = 'r'),
