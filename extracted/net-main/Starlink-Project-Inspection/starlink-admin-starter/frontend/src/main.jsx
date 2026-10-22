@@ -1701,7 +1701,7 @@ function submitPayment(event) {
   const [result, setResult] = useState(null);
   const submissionKey = useRef(null);
   const bundle = link?.bundles.find((b) => b.id === bundleId);
-  
+
   useEffect(() => {
   if (
     showPaymentPopup &&
